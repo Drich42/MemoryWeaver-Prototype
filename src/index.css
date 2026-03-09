@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0f2ab3;
+  --color-background-light: #fdfcf7;
+  --color-background-dark: #101322;
+  --color-navy-muted: #1e293b;
+  --color-accent-gold: #d4af37;
+
+  --font-display: "Inter", sans-serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+@layer utilities {
+  .parchment-texture {
+      background-image: radial-gradient(#e5e7eb 0.5px, transparent 0.5px);
+      background-size: 24px 24px;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background-light);
+    color: #0f172a;
+    font-family: var(--font-display);
+  }
+}

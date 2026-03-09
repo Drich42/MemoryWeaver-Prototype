@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Memory Weaver - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0f2ab3",
+                        "background-light": "#fdfcf7", // Parchment-like tone
+                        "background-dark": "#101322",
+                        "navy-muted": "#1e293b",
+                        "accent-gold": "#d4af37"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .parchment-texture {
+            background-image: radial-gradient(#e5e7eb 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 flex-shrink-0 border-r border-primary/10 bg-white dark:bg-slate-900 flex flex-col">
+<div class="p-6 flex items-center gap-3">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">auto_stories</span>
+</div>
+<h2 class="text-xl font-bold tracking-tight text-primary">Memory Weaver</h2>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary font-semibold" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Family Tree</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Actor Profiles</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">folder_shared</span>
+<span>Archives</span>
+</a>
+<div class="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Collections</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">history_edu</span>
+<span>Woven Stories</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">photo_library</span>
+<span>Artifact Gallery</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-100 dark:border-slate-800">
+<div class="flex items-center gap-3 p-2">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center">
+<img class="size-full rounded-full object-cover" data-alt="User profile photo of a curator" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSb8BtJ967jdsVl_o8P_1rVc3TihGrzkn4zdRb9zw77uTNxBrZipAeaRYNrwpUVU14gWjQFHWC_32cQ9vEBp4Ki2JCdJj1j32YbOFIxRvnFzlZtlYEXZPLPBHem2qd0AH3y53VhygrOl3lzYFmC2sk6EsfcILtMHCUvAdluLVj874SB2GHeXV2h9IFDhbKjWethmOkt9vGeo73WAkEeZAo1eohTY_vPd9JuC23v3vJOaDtPR0s-vQJz8-FSYzZWcQHsePHAHN_js7Q"/>
+</div>
+<div class="overflow-hidden">
+<p class="text-sm font-bold truncate">Julian Thorne</p>
+<p class="text-xs text-slate-500 truncate">Digital Archivist</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col overflow-y-auto parchment-texture">
+<!-- Header -->
+<header class="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-primary/10 px-8 py-4 flex items-center justify-between">
+<div class="relative w-96">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm" placeholder="Search ancestors, artifacts, or threads..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="bg-primary text-white px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-lg">add</span>
+                        New Memory
+                    </button>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-8 max-w-7xl mx-auto w-full space-y-8">
+<!-- Welcome Section -->
+<div>
+<h1 class="text-3xl font-black text-navy-muted dark:text-slate-100">Memory Dashboard</h1>
+<p class="text-slate-500 mt-1 italic">"The threads of the past are the fabric of our future."</p>
+</div>
+<!-- Memory Threads Section -->
+<section>
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">mediation</span>
+<h2 class="text-xl font-bold text-navy-muted dark:text-slate-100">Active Memory Threads</h2>
+</div>
+<a class="text-sm font-semibold text-primary hover:underline" href="#">View all threads</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all border-b-4 border-b-primary">
+<div class="h-48 overflow-hidden relative">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Old library with dusty books and warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA973i2QsAgjNIlU6rqlRTgltxz5Jk1hpwsMmEFSRR0ZqZBJmr_rkG4JsQRPweptZki2gGLAyeSVM1e-j7YboVgmJ-hITTi5CRb2etWPYVXnQAQ_o8HYWh9uC9MCt1DhgNTiRvqv7PFbltvgn2X2ocxhprfAtNUr9mWAAj5JDIUJKiq7qPX-xwrVXSOAHeBJHMCeiTMRx6PEUi0XoteC9buYo0WuE-ChFWTylmgrUNHNz7AfNGo9PxYfExxijL9BwUQhVqwwe8LAuTq"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter">Chapter 12</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-bold group-hover:text-primary transition-colors">The Great Migration (1922)</h3>
+<p class="text-slate-500 text-sm mt-2 line-clamp-2 leading-relaxed">Tracing the journey from the old coastal villages to the industrial heartlands during the winter of 1922.</p>
+<div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 overflow-hidden">
+<img data-alt="Ancestor portrait photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbaAZccv35aUfbGGjIBn2WA4aqiaTFrlTd8cXd_dpaRaVuD1ZBjU9JSGoihfmE-oR_H_Wa231e7hxwiVgF8lKPdokMTbHYD4sQE95DQLGJScenVBdviVrg44ujMA_Ut-zt1VPCmhokOxJQxguwdn5V4mE2aKfO9G394X3vJDFwMb1Li1rRLBmiK3Eko11e-CdzfafL9xm19XKw4mH6CuB8zt2iDiOBposTlhAnxukJmOmbNyzhRJ303X6xsp6jCzZM9xPwBrMM4f-L"/>
+</div>
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 overflow-hidden">
+<img data-alt="Ancestor portrait photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6Sgf9LVG_EmqzbWQA9t-47NXl3k2qTyuASoUCoHAWxKBwBlzjsTRJX8xa5C1rKGolZrKKvHvpODDHVCAHDkF94rDNyowT30ZvFyfN6HW7ncXRMvM_vMSub6CT1FGtHOG89JGCIvlA1bt2L6a2jGisI0PqbjLPUyu01RS2gtMDNCkFtskt0dWP23yU7ttuak5JruoxkQrpxjc-eFnlv2A_Qwk_3LGL8FUf-lS8N8E_3VUjNdnPgrqSSuGYfu6yda5av0v87RCdL0hG"/>
+</div>
+</div>
+<span class="text-xs font-bold text-slate-400 uppercase">8 artifacts linked</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all border-b-4 border-b-accent-gold">
+<div class="h-48 overflow-hidden relative">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Rustic farmhouse in a golden wheat field" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFg3fH6ucAuBuLbfEmuRp3MJMe1fC2BrvS8m6vUGYPcqsCouDJ3Uq8IBDo7wcq_KCRv2ajHGmx8GUR-tTGDDooc_1-PdzvRF1whFCu57mpLiZuFj4iLLSGJlT82D2Jf1nKbfq3TVEdWTjD5CxuVJ1L-aIgDqlwp7u0b9IMeOlh-lNKsTnlEImaRSEk27Ws-0W3jVtO42ntRewneuCWLNy8hBX28gNf6j8-eK8-5OlIZuyiL93rGk6SF0nLvF2HJ1VtrOesxwE1zYBr"/>
+<div class="absolute top-4 left-4 bg-accent-gold text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter">Draft</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-bold group-hover:text-primary transition-colors">Farmstead Memories</h3>
+<p class="text-slate-500 text-sm mt-2 line-clamp-2 leading-relaxed">Collection of oral histories regarding the family homestead in the Appalachian foothills.</p>
+<div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 overflow-hidden text-[8px] flex items-center justify-center font-bold">MK</div>
+</div>
+<span class="text-xs font-bold text-slate-400 uppercase">3 recordings</span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all border-b-4 border-b-primary/40">
+<div class="h-48 overflow-hidden relative">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Ocean waves crashing on a sandy beach at sunset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMHCSoEg8oHK40R2ChqL49uTu_rZTSho3oWv5b1pt-FyShzrLvqJalRV8D_IYr3p1mi7U6quBClQnS7Mnqcm5lEkR8Y5o5ceCYm23O7VEXLlMAEzWwoP0ynfjIzH9nkxKTHxjZvIUS2wpIOSCq0f-6KNvgmLOeHISL5Y672bwnrRXcISJUB1Nd1sHDSdDLnTVu2PNQRIheKVjIHFi8kBWTxl8yvhrURnUpgUCNKPCpW_6YTdoKdR3Cv-u69MBGaXviej4ANYuUmbZt"/>
+<div class="absolute top-4 left-4 bg-primary/40 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter">Completed</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-bold group-hover:text-primary transition-colors">Coastal Summers</h3>
+<p class="text-slate-500 text-sm mt-2 line-clamp-2 leading-relaxed">Archive of letters and photos from the 1950s vacation rentals near Silver Sands.</p>
+<div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 overflow-hidden">
+<img data-alt="Ancestor portrait photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCXVIQSMFpdG0MXErsrZWX9DpdtPFZ0SEYlVJLoDeGZCdPlu3rb64OhURIJV-_vBgVNqj2pq6boJ-CuXBFLa8kF8llUI5dS_KShmcxIh8RvCdshDZ3R96DTTfIV6qKhA08vzsICCb4fy_PSuI7FqgoKmU0LiPSZxO4IaFg8E0b0lg_QWXHB4rv1yj7PM0ch_wSzQDQmuLnpRUSKfjGO7uZIVpQMm_ZEN3jcFs8kZ5cG22Hlko_p9jAskkJKJjswO4qj2PcYtAvWXYJ"/>
+</div>
+</div>
+<span class="text-xs font-bold text-slate-400 uppercase">24 photos added</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Artifacts Gallery -->
+<section>
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">camera_roll</span>
+<h2 class="text-xl font-bold text-navy-muted dark:text-slate-100">Recent Artifacts</h2>
+</div>
+<button class="flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+<span class="material-symbols-outlined text-sm">filter_list</span> Filter
+                        </button>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+<!-- Artifact 1 -->
+<div class="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" data-alt="Black and white vintage photograph of a young woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAarqbuKyAPYDqca8su8p3bJnFrqA1H38BNLSeE2Nls7L4suUzeUYXHsJnXyTggnc2fmLwl5uvCyCtzzusquqb78hmS31wLGKW10QA7yoDcPVPasnAiDsArSZy9AAF9HMOAH3dg6s713Sfi6XjkOkRKqo9Jg8LKH0mNLRPehDZxPX5Cw1Vo9ht0qMcABUQAYEq80vVUD-f63-GjgjOvNAnIxwHgmgd-RTBVIkwkFmAsvTuhoDezAyxkNrETlxe4sJzuuQ60sgGv0QyS"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+<span class="text-[10px] text-white font-medium">Portrait, 1941</span>
+</div>
+</div>
+<!-- Artifact 2 -->
+<div class="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" data-alt="Old handwritten letter on yellowed paper" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWZyfv5dmGFg6Duo6KWAEnUJyGQlHHbHWD2n_vggQGPxbJxXwDK5TNoBegFVBOnGTWxdatHWsb6DUHMd2fra4Ny0o-l6ecPNOA6Sbzs2KTBhxR1N84KTnilyWrAIEVBEMjaVvQ8grlogIba2H3XSPdsqL3XhVT4np7exTqhwc3vyAXvnICdGY7eGZR0h3w5UgnI9IoVZxsgyT4FLI18jq8md45Qc_ABk8EjfGNhrK6QtOLkwKgTJ170GqJbBHUX2Pud0-epdGQ0mBu"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+<span class="text-[10px] text-white font-medium">Letter, 1895</span>
+</div>
+</div>
+<!-- Artifact 3 -->
+<div class="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" data-alt="Vintage brass pocket watch on wood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCP_h7EDh4CTTJn0_NXurLz9UNrt6SXTpS2C16s-W_ZJ6StxGy85EP3LEpj-j7uzwETutyjPmvv3sbjRofMYRKscF3ZwfaeqaoLw89zkib6a5IPQB2FYCEamOHrjF1U-35iEDoIC2S-stg89JGbx-_i3BTkgld9WR7cZ3lUHM6KirrYEvNeoeQ6Z0x_q5cWpLPoissRHLFIQvzkpwqj3D-UKu9If7vaQ6uVBUDNGKiUbO1aDekqpXQ8UN6ZbKp5cqERXn1fgQAZyiEm"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+<span class="text-[10px] text-white font-medium">Watch, 1910</span>
+</div>
+</div>
+<!-- Artifact 4 -->
+<div class="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" data-alt="Sepia photo of a family gathered outdoors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB931ePzubexpdJMlFjcaHwpN_3IFElzM4PBagUZKyvOFmuPrl-ITMjZflEAMGpcC4Mnhz4zh_LxpIPP8eIuHV05waWfvbukHfY0LX8oGPK3BufobWVybgVaCRdgNDKSB7LxBcl445d9hZFy9eqZLCxb3qB10tjyve500oLHcdIT7tWMse18bmsOwKUjXIR-EWoMac5Vj-PYFdyAZGVMT-SjXr_ULU3KYIRzs1RXGNZtFU2r8TRbTQXcgGEW0GKzl4qgYOhXepOjaED"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+<span class="text-[10px] text-white font-medium">Picnic, 1952</span>
+</div>
+</div>
+<!-- Artifact 5 -->
+<div class="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" data-alt="Small metallic locket with intricate details" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHhCGID33uTnOgQdUiYzHJcnbP6uv2Xil9zGEphmpqNj8gg1fLS7Vx4QKc-fWtBf2LeRFblbcxMtJnqB_WZEBinIkLUiNmI2Q96IJvwRhxZjxmSpH3J2bxP9VeHS7YaJknX1vaJ0j9YbNllQrCGpoXHqoYZPr43-xOGpOBv13tKYs9c2t2RlorM6v84jHliaTjmO0lolR0wjuZtcwpzM6KpImry4ptg3IoBj29W3IdjYnRQQEFTvrzf5vIEVc5t-_we9rzsiVDKkCC"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+<span class="text-[10px] text-white font-medium">Locket, 1880</span>
+</div>
+</div>
+<!-- Artifact 6 -->
+<div class="aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-300 flex flex-col items-center justify-center group cursor-pointer hover:border-primary transition-all">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">add_a_photo</span>
+<span class="text-[10px] text-slate-400 font-bold uppercase mt-1">Upload</span>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+<!-- Family Tree Quick Access -->
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">account_tree</span>
+                                Family Lineage
+                            </h2>
+<button class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined text-slate-400">fullscreen</span>
+</button>
+</div>
+<div class="h-48 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-200">
+<div class="flex items-center justify-center gap-4 mb-4">
+<div class="size-12 rounded-full border-2 border-primary bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">person</span>
+</div>
+<div class="w-8 h-0.5 bg-slate-300"></div>
+<div class="size-12 rounded-full border-2 border-slate-200 bg-white flex items-center justify-center opacity-50">
+<span class="material-symbols-outlined text-slate-300">person</span>
+</div>
+</div>
+<p class="text-sm font-medium text-slate-600">The Thorne-Everly Lineage</p>
+<p class="text-xs text-slate-400">4 Generations • 12 Nodes</p>
+<button class="mt-4 text-xs font-bold text-primary px-4 py-2 bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors">Expand Family Tree</button>
+</div>
+</div>
+<!-- Actor Profiles Quick Access -->
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">groups</span>
+                                Key Storytellers
+                            </h2>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-accent-gold/20 flex items-center justify-center">
+<img class="size-full rounded-lg object-cover" data-alt="Portrait of Elena Thorne" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVXog7qSHZj1TYqEU7sPYyqHwEJjSPK2NlAgGwzNitbEsvjrzAY4C8F-Bru_AGuXgokRoqsPAocK7dXLKGa7WrDLWJBhw1YzZ1_khposkFFGzSvZx_DAuODnCc2uMJ1kSuxfj74urqyugOtG0XkJOWXxNOtXDxhEDcDIKVz-pYR67EhrMffcK0KCo6aEt6MIYqijFWl_ONcBHF1EG61w7pQQl8P7Q9J4YAUo-7emsEVbM0bf0nvROSwZIs8H994Q4F0zWG05Nu4Fmu"/>
+</div>
+<div>
+<p class="text-sm font-bold">Elena Thorne</p>
+<p class="text-xs text-slate-500">Matriarch &amp; Archivist</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-300">chevron_right</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-primary/20 flex items-center justify-center">
+<img class="size-full rounded-lg object-cover" data-alt="Portrait of Marcus Thorne" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG24NEfAEQga0ynrqJdVObW929kezb2elMqCsihpC0soD1-rptc_QkpPeItfxIrdJfz1OTq1XzY_8BeOaSGvXTz_XUSBJonCQKFmVZ0XNR_5laQf-9r-OZBXoKW9GyJISnbc694heCUff30vcrhnw0k5VhTRZo3Kl4R6XMewjEOhnTbm8hCcePmz6LCuzwLfFi551TmbCJh85IdiWzv9JKCNdl9kYO-phrexNMEPSso148m2Ci4ccEb1BZWyy51asV_0RVfuAB1XUm"/>
+</div>
+<div>
+<p class="text-sm font-bold">Marcus Thorne</p>
+<p class="text-xs text-slate-500">Researcher</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-300">chevron_right</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-slate-100 flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-400">person_add</span>
+</div>
+<div>
+<p class="text-sm font-bold text-slate-400">Add Storyteller</p>
+<p class="text-xs text-slate-400">Invite family member</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer for dash -->
+<footer class="p-8 border-t border-slate-200 dark:border-slate-800 text-center text-slate-400 text-sm">
+<p>© 2024 Memory Weaver Digital Archives. All memories encrypted and preserved.</p>
+</footer>
+</main>
+</div>
+</body></html>
