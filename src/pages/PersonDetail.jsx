@@ -132,7 +132,7 @@ export default function PersonDetail() {
 
   // Add Person Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPerson, setNewPerson] = useState({ display_name: '', first_name: '', last_name: '', known_as: '', birth_date: '', death_date: '' });
+  const [newPerson, setNewPerson] = useState({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
   const [addingError, setAddingError] = useState(null);
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
@@ -147,7 +147,6 @@ export default function PersonDetail() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
-          known_as: newPerson.known_as || null,
           birth_date: newPerson.birth_date || null,
           death_date: newPerson.death_date || null
         }])
@@ -161,7 +160,7 @@ export default function PersonDetail() {
       
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', known_as: '', birth_date: '', death_date: '' });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
       await fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
@@ -195,7 +194,6 @@ export default function PersonDetail() {
           display_name: person.display_name,
           first_name: person.first_name,
           last_name: person.last_name,
-          known_as: person.known_as,
           birth_date: person.birth_date || null,
           death_date: person.death_date || null,
           biography: person.biography
@@ -449,11 +447,6 @@ export default function PersonDetail() {
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-sepia-800">Surname / Last Name</label>
               <input value={person.last_name || ''} onChange={e => setPerson({...person, last_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-sepia-800">Known As (Alias)</label>
-              <input value={person.known_as || ''} onChange={e => setPerson({...person, known_as: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Papa, Uncle John" />
             </div>
 
             <div className="space-y-1.5">

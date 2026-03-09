@@ -1,13 +1,36 @@
-import { BrowserRouter, Routes, Route, Outlet, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, Link, useLocation, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabase } from './lib/supabase';
 import Dashboard from './pages/Dashboard';
 import Memories from './pages/Memories';
 import MemoryDetail from './pages/MemoryDetail';
 import People from './pages/People';
 import PersonDetail from './pages/PersonDetail';
 import UploadWorkflow from './pages/Upload';
+import Auth from './pages/Auth';
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/auth" />;
+  }
+  
+  return children;
+}
 
 function AppLayout() {
   const location = useLocation();
+  const { user } = useAuth();
+  
   const navItems = [
     { label: 'Dashboard', icon: 'dashboard', path: '/' },
     { label: 'Family Tree', icon: 'account_tree', path: '/tree' },
@@ -19,6 +42,10 @@ function AppLayout() {
     { label: 'Woven Stories', icon: 'history_edu', path: '/stories' },
     { label: 'Artifact Gallery', icon: 'photo_library', path: '/memories' },
   ];
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
@@ -75,6 +102,16 @@ function AppLayout() {
                  })}
                </div>
             </div>
+           
+            <div className="pt-8 px-2">
+              <button 
+                onClick={handleSignOut} 
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors border border-red-100 dark:border-red-900/30"
+              >
+                <span className="material-symbols-outlined text-lg">logout</span>
+                Sign Out
+              </button>
+            </div>
           </nav>
           
           <div className="p-4 border-t border-slate-100 dark:border-slate-800">
@@ -83,8 +120,8 @@ function AppLayout() {
                 <span className="material-symbols-outlined text-primary">person</span>
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-bold truncate">Julian Thorne</p>
-                <p className="text-xs text-slate-500 truncate">Digital Archivist</p>
+                <p className="text-sm font-bold truncate">Archivist</p>
+                <p className="text-xs text-slate-500 truncate" title={user?.email}>{user?.email}</p>
               </div>
             </div>
           </div>
@@ -124,19 +161,25 @@ function AppLayout() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="memories" element={<Memories />} />
-          <Route path="memories/:id" element={<MemoryDetail />} />
-          <Route path="people" element={<People />} />
-          <Route path="people/:id" element={<PersonDetail />} />
-          <Route path="upload" element={<UploadWorkflow />} />
-          <Route path="settings" element={<div className="text-center p-12 text-sepia-600">Settings and Trust Groups configuration</div>} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Auth Route */}
+          <Route path="/auth" element={<Auth />} />
+          
+          {/* Protected Main App Routes */}
+          <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route index element={<Dashboard />} />
+            <Route path="memories" element={<Memories />} />
+            <Route path="memories/:id" element={<MemoryDetail />} />
+            <Route path="people" element={<People />} />
+            <Route path="people/:id" element={<PersonDetail />} />
+            <Route path="upload" element={<UploadWorkflow />} />
+            <Route path="settings" element={<div className="text-center p-12 text-sepia-600">Settings and Trust Groups configuration</div>} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

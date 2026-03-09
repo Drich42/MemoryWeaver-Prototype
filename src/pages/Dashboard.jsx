@@ -31,7 +31,7 @@ export default function Dashboard() {
         // 2. Fetch Key Storytellers (Top 3 persons)
         const { data: personsData } = await supabase
           .from('persons')
-          .select('id, display_name, biography, first_name, known_as')
+          .select('id, display_name, biography, first_name')
           .order('created_at', { ascending: false })
           .limit(3);
           
@@ -253,7 +253,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800 group-hover:text-primary transition-colors">
-                        {person.display_name} {person.known_as ? `("${person.known_as}")` : ''}
+                        {person.display_name}
                       </p>
                       <p className="text-xs text-slate-500 line-clamp-1 max-w-[200px]">{person.biography || 'No biography details provided.'}</p>
                     </div>

@@ -15,7 +15,6 @@ export default function People() {
     display_name: '',
     first_name: '',
     last_name: '',
-    known_as: '',
     birth_date: '',
     death_date: ''
   });
@@ -80,7 +79,6 @@ export default function People() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
-          known_as: newPerson.known_as || null,
           birth_date: newPerson.birth_date || null,
           death_date: newPerson.death_date || null
         }]);
@@ -89,7 +87,7 @@ export default function People() {
       
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', known_as: '', birth_date: '', death_date: '' });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
       fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
