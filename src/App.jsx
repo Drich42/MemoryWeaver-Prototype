@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './lib/supabase';
@@ -30,6 +31,7 @@ function ProtectedRoute({ children }) {
 function AppLayout() {
   const location = useLocation();
   const { user } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const navItems = [
     { label: 'Dashboard', icon: 'dashboard', path: '/' },
@@ -50,13 +52,31 @@ function AppLayout() {
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
       <div className="flex h-screen overflow-hidden">
+        
+        {/* Mobile Sidebar Overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
+
         {/* Sidebar */}
-        <aside className="w-64 flex-shrink-0 border-r border-primary/10 bg-white dark:bg-slate-900 flex flex-col">
-          <div className="p-6 flex items-center gap-3">
-            <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white shrink-0">
-              <span className="material-symbols-outlined">auto_stories</span>
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 md:w-64 flex-shrink-0 border-r border-primary/10 bg-white dark:bg-slate-900 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="p-4 md:p-6 flex items-center justify-between md:justify-start gap-3">
+            <div className="flex items-center gap-3">
+              <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white shrink-0">
+                <span className="material-symbols-outlined">auto_stories</span>
+              </div>
+              <h2 className="text-xl font-bold tracking-tight text-primary">Memory Weaver</h2>
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-primary">Memory Weaver</h2>
+            {/* Mobile Close Button */}
+            <button 
+              className="md:hidden text-slate-500 hover:text-slate-700"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
           
           <nav className="flex-1 px-4 mt-4 space-y-6 overflow-y-auto">
@@ -67,6 +87,7 @@ function AppLayout() {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                       isActive
                         ? 'bg-primary/10 text-primary font-semibold'
@@ -89,6 +110,7 @@ function AppLayout() {
                       <Link
                         key={item.path}
                         to={item.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                           isActive
                             ? 'bg-primary/10 text-primary font-semibold'
@@ -128,10 +150,20 @@ function AppLayout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col overflow-y-auto parchment-texture relative">
+        <main className="flex-1 flex flex-col overflow-y-auto parchment-texture relative w-full">
           {/* Header */}
-          <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-primary/10 px-8 py-4 flex items-center justify-between">
-            <div className="relative w-96">
+          <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-primary/10 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-2 md:gap-4">
+            
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button 
+                className="md:hidden size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-primary transition-colors"
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
+                <span className="material-symbols-outlined">menu</span>
+              </button>
+            </div>
+
+            <div className="relative w-full max-w-md mx-auto hidden md:block">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
               <input 
                 className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm outline-none" 
@@ -139,7 +171,8 @@ function AppLayout() {
                 type="text"
               />
             </div>
-            <div className="flex items-center gap-4">
+            
+            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
               <button className="size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-primary transition-colors">
                 <span className="material-symbols-outlined">notifications</span>
               </button>
@@ -150,7 +183,7 @@ function AppLayout() {
             </div>
           </header>
 
-          <div className="flex-1 p-8">
+          <div className="flex-1 p-4 md:p-8 overflow-x-hidden">
             <Outlet />
           </div>
         </main>

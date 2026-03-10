@@ -385,9 +385,9 @@ export default function PersonDetail() {
       {/* Add Person Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-sepia-950/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-paper)] rounded-2xl border border-sepia-200 shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-sepia-100 bg-sepia-50/50">
-              <h3 className="font-serif font-bold text-xl text-sepia-900">Add Person to Graph</h3>
+          <div className="bg-[var(--color-paper)] rounded-2xl border border-sepia-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-sepia-100 bg-sepia-50/50 sticky top-0 z-10">
+              <h3 className="font-serif font-bold text-lg md:text-xl text-sepia-900">Add Person to Graph</h3>
               <button type="button" onClick={() => setShowAddModal(false)} className="text-sepia-400 hover:text-sepia-700 transition-colors">
                 <X size={20} />
               </button>
@@ -440,22 +440,22 @@ export default function PersonDetail() {
       )}
 
       {/* Header Toolbar */}
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate('/people')} className="flex items-center gap-2 text-sepia-600 hover:text-sepia-900 transition-colors font-medium bg-sepia-100/50 hover:bg-sepia-200 px-4 py-2 rounded-lg border border-sepia-200">
-          <ArrowLeft size={18} /> Back to Directory
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <button onClick={() => navigate('/people')} className="w-full sm:w-auto flex items-center justify-center gap-2 text-sepia-600 hover:text-sepia-900 transition-colors font-medium bg-sepia-100/50 hover:bg-sepia-200 px-4 py-2 rounded-lg border border-sepia-200">
+          <ArrowLeft size={18} /> <span className="hidden sm:inline">Back to Directory</span><span className="sm:hidden">Back</span>
         </button>
         
-        <div className="flex items-center gap-4">
-          <button onClick={handleDelete} className="flex items-center gap-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg font-medium transition-colors border border-red-200">
-            <Trash2 size={18} /> Delete Person
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button onClick={handleDelete} className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg font-medium transition-colors border border-red-200">
+            <Trash2 size={18} /> <span className="hidden sm:inline">Delete Person</span>
           </button>
-          <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 bg-sepia-800 text-sepia-50 px-6 py-2 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50">
+          <button onClick={handleSave} disabled={isSaving} className="flex-[2] sm:flex-none flex items-center justify-center gap-2 bg-sepia-800 text-sepia-50 px-6 py-2 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50 whitespace-nowrap">
             <Save size={18} /> {isSaving ? 'Saving...' : 'Save Updates'}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-8 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-8 overflow-y-auto lg:overflow-hidden pb-12 lg:pb-0">
         
         {/* Left Column: Metadata */}
         <div className="flex-1 overflow-y-auto bg-[var(--color-paper)] border border-sepia-200 rounded-2xl p-6 shadow-sm space-y-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sepia-300 [&::-webkit-scrollbar-thumb]:rounded-full">

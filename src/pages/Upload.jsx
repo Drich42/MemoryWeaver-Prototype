@@ -232,14 +232,14 @@ export default function UploadWorkflow() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 animate-in fade-in duration-500 relative">
+    <div className="max-w-3xl mx-auto py-4 md:py-8 animate-in fade-in duration-500 relative">
       
       {/* Add Person Modal (Ported from People.jsx) */}
       {showAddModal && (
         <div className="fixed inset-0 bg-sepia-950/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-paper)] rounded-2xl border border-sepia-200 shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-sepia-100 bg-sepia-50/50">
-              <h3 className="font-serif font-bold text-xl text-sepia-900">Add Person to Graph</h3>
+          <div className="bg-[var(--color-paper)] rounded-2xl border border-sepia-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-sepia-100 bg-sepia-50/50 sticky top-0 z-10">
+              <h3 className="font-serif font-bold text-lg md:text-xl text-sepia-900">Add Person to Graph</h3>
               <button onClick={() => setShowAddModal(false)} className="text-sepia-400 hover:text-sepia-700 transition-colors">
                 <X size={20} />
               </button>
@@ -313,7 +313,7 @@ export default function UploadWorkflow() {
         ))}
       </div>
 
-      <div className="bg-[var(--color-paper)] border border-sepia-200 rounded-2xl p-8 shadow-sm relative z-0">
+      <div className="bg-[var(--color-paper)] border border-sepia-200 rounded-2xl p-4 md:p-8 shadow-sm relative z-0">
         
         {step === 1 && (
           <form onSubmit={() => setStep(2)} className="space-y-6">
@@ -406,7 +406,7 @@ export default function UploadWorkflow() {
             )}
             
             <div className="flex justify-end pt-4">
-              <button type="submit" disabled={selectedFiles.length === 0} className="bg-sepia-800 text-sepia-50 px-8 py-3 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" disabled={selectedFiles.length === 0} className="w-full sm:w-auto bg-sepia-800 text-sepia-50 px-8 py-3 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center">
                 Next: Build Connections
               </button>
             </div>
@@ -460,8 +460,8 @@ export default function UploadWorkflow() {
 
             <div className="flex justify-between pt-4">
               <button type="button" onClick={() => setStep(1)} className="px-6 py-3 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Back</button>
-              <button type="submit" disabled={isUploading} className="flex items-center gap-2 bg-sepia-800 text-sepia-50 px-8 py-3 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50">
-                {isUploading ? 'Ingesting Artifact...' : 'Publish to Archive'}
+              <button type="submit" disabled={isUploading} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-sepia-800 text-sepia-50 px-8 py-3 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50 text-center">
+                <UploadIcon size={18} /> {isUploading ? 'Ingesting Batch...' : 'Publish to Graph'}
               </button>
             </div>
           </form>
