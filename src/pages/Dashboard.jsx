@@ -21,7 +21,7 @@ export default function Dashboard() {
         // 1. Fetch Recent Artifacts (Memories with media)
         const { data: artifactsData } = await supabase
           .from('memories')
-          .select('id, title, type, capture_date, artifact_url, thumbnail_url')
+          .select('id, title, type, start_date, date_text, artifact_url, thumbnail_url')
           .not('artifact_url', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
@@ -169,7 +169,7 @@ export default function Dashboard() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                 <span className="text-[10px] text-white font-medium truncate w-full block">
                   {artifact.title || 'Untitled'}
-                  {artifact.capture_date && `, ${artifact.capture_date.substring(0,4)}`}
+                  {artifact.date_text ? `, ${artifact.date_text}` : (artifact.start_date ? `, ${artifact.start_date.substring(0,4)}` : '')}
                 </span>
               </div>
             </Link>

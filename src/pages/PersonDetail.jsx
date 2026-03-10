@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Save, Trash2, Users, Network, X, UserPlus } from 'lucide-react';
+import DateRangePicker from '../components/DateRangePicker';
 
 export default function PersonDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  console.log("RENDERED PersonDetail, id:", id);
   
   const [person, setPerson] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,7 @@ export default function PersonDetail() {
   const [selectedRelType, setSelectedRelType] = useState('parent');
 
   useEffect(() => {
+    console.log("useEffect triggered for id:", id);
     async function fetchData() {
       try {
         setLoading(true);
@@ -44,7 +48,21 @@ export default function PersonDetail() {
           .single();
           
         if (personError) throw personError;
-        setPerson(personData);
+        const formattedPerson = {
+          ...personData,
+          birth: {
+            startDate: personData.birth_start_date || null,
+            endDate: personData.birth_end_date || null,
+            dateText: personData.birth_text || null
+          },
+          death: {
+            startDate: personData.death_start_date || null,
+            endDate: personData.death_end_date || null,
+            dateText: personData.death_text || null
+          },
+          isDeceased: Boolean(personData.death_start_date || personData.death_end_date || personData.death_text)
+        };
+        setPerson(formattedPerson);
         
         // 2. Fetch all available people (for the dropdown)
         const { data: allPeople, error: allError } = await supabase
@@ -85,7 +103,7 @@ export default function PersonDetail() {
         setChildren(fetchedChildren);
 
         // Store initial states for dirty checking
-        setInitialPerson(personData);
+        setInitialPerson(formattedPerson);
         setInitialParents(fetchedParents);
         setInitialSpouses(fetchedSpouses);
         setInitialChildren(fetchedChildren);
@@ -132,7 +150,11 @@ export default function PersonDetail() {
 
   // Add Person Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPerson, setNewPerson] = useState({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+  const [newPerson, setNewPerson] = useState({ 
+    display_name: '', first_name: '', last_name: '', 
+    birth: { startDate: null, endDate: null, dateText: null }, 
+    death: { startDate: null, endDate: null, dateText: null } 
+  });
   const [addingError, setAddingError] = useState(null);
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
@@ -147,8 +169,12 @@ export default function PersonDetail() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
-          birth_date: newPerson.birth_date || null,
-          death_date: newPerson.death_date || null
+          birth_start_date: newPerson.birth.startDate || null,
+          birth_end_date: newPerson.birth.endDate || null,
+          birth_text: newPerson.birth.dateText || null,
+          death_start_date: newPerson.death.startDate || null,
+          death_end_date: newPerson.death.endDate || null,
+          death_text: newPerson.death.dateText || null
         }])
         .select()
         .single();
@@ -160,7 +186,7 @@ export default function PersonDetail() {
       
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null } });
       await fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
@@ -194,8 +220,12 @@ export default function PersonDetail() {
           display_name: person.display_name,
           first_name: person.first_name,
           last_name: person.last_name,
-          birth_date: person.birth_date || null,
-          death_date: person.death_date || null,
+          birth_start_date: person.birth?.startDate || null,
+          birth_end_date: person.birth?.endDate || null,
+          birth_text: person.birth?.dateText || null,
+          death_start_date: person.isDeceased ? (person.death?.startDate || null) : null,
+          death_end_date: person.isDeceased ? (person.death?.endDate || null) : null,
+          death_text: person.isDeceased ? (person.death?.dateText || null) : null,
           biography: person.biography
         })
         .eq('id', person.id);
@@ -387,16 +417,16 @@ export default function PersonDetail() {
                 <input value={newPerson.known_as} onChange={e => setNewPerson({...newPerson, known_as: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Birth Date</label>
-                  <input value={newPerson.birth_date} onChange={e => setNewPerson({...newPerson, birth_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Death Date</label>
-                  <input value={newPerson.death_date} onChange={e => setNewPerson({...newPerson, death_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-              </div>
+              <DateRangePicker 
+                label="Birth Date" 
+                value={newPerson.birth} 
+                onChange={(val) => setNewPerson({...newPerson, birth: val})} 
+              />
+              <DateRangePicker 
+                label="Death Date" 
+                value={newPerson.death} 
+                onChange={(val) => setNewPerson({...newPerson, death: val})} 
+              />
               
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>
@@ -449,14 +479,32 @@ export default function PersonDetail() {
               <input value={person.last_name || ''} onChange={e => setPerson({...person, last_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-sepia-800">Birth Date</label>
-              <input value={person.birth_date || ''} onChange={e => setPerson({...person, birth_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+            <div className="col-span-2">
+              <DateRangePicker 
+                label="Birth Date" 
+                value={person.birth} 
+                onChange={(val) => setPerson({...person, birth: val})} 
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-sepia-800">Death Date</label>
-              <input value={person.death_date || ''} onChange={e => setPerson({...person, death_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+            <div className="col-span-2">
+              <label className="flex items-center gap-2 cursor-pointer mb-2 w-max">
+                <input 
+                  type="checkbox" 
+                  checked={person.isDeceased || false}
+                  onChange={(e) => setPerson({...person, isDeceased: e.target.checked})}
+                  className="w-4 h-4 text-sepia-600 border-sepia-300 rounded focus:ring-sepia-500"
+                />
+                <span className="text-sm font-semibold text-sepia-800">Person is Deceased</span>
+              </label>
+
+              {person.isDeceased && (
+                <DateRangePicker 
+                  label="Death Date" 
+                  value={person.death || { startDate: null, endDate: null, dateText: null }} 
+                  onChange={(val) => setPerson({...person, death: val})} 
+                />
+              )}
             </div>
 
             <div className="col-span-2 space-y-1.5">

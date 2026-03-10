@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserPlus, AlertCircle, Users, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import DateRangePicker from '../components/DateRangePicker';
 
 export default function People() {
   const [people, setPeople] = useState([]);
@@ -15,8 +16,9 @@ export default function People() {
     display_name: '',
     first_name: '',
     last_name: '',
-    birth_date: '',
-    death_date: ''
+    birth: { startDate: null, endDate: null, dateText: null },
+    death: { startDate: null, endDate: null, dateText: null },
+    isDeceased: false
   });
   const [addingError, setAddingError] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -31,8 +33,8 @@ export default function People() {
         .select(`
           id,
           display_name,
-          birth_date,
-          death_date,
+          birth_start_date,
+          death_start_date,
           memory_persons ( count )
         `)
         .order('created_at', { ascending: false });
@@ -40,8 +42,8 @@ export default function People() {
       if (fetchError) throw fetchError;
 
       const formattedPeople = (data || []).map(p => {
-        const startYear = p.birth_date ? p.birth_date.split('-')[0] : '?';
-        const endYear = p.death_date ? p.death_date.split('-')[0] : 'Present';
+        const startYear = p.birth_start_date ? p.birth_start_date.split('-')[0] : '?';
+        const endYear = p.death_start_date ? p.death_start_date.split('-')[0] : 'Present';
         const dates = `${startYear} - ${endYear}`;
         
         const memCount = p.memory_persons?.[0]?.count || 0;
@@ -79,15 +81,19 @@ export default function People() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
-          birth_date: newPerson.birth_date || null,
-          death_date: newPerson.death_date || null
+          birth_start_date: newPerson.birth.startDate || null,
+          birth_end_date: newPerson.birth.endDate || null,
+          birth_text: newPerson.birth.dateText || null,
+          death_start_date: newPerson.death.startDate || null,
+          death_end_date: newPerson.death.endDate || null,
+          death_text: newPerson.death.dateText || null
         }]);
       
       if (insertError) throw insertError;
       
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null }, isDeceased: false });
       fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
@@ -142,16 +148,29 @@ export default function People() {
                 <input value={newPerson.known_as} onChange={e => setNewPerson({...newPerson, known_as: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Birth Date</label>
-                  <input value={newPerson.birth_date} onChange={e => setNewPerson({...newPerson, birth_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Death Date</label>
-                  <input value={newPerson.death_date} onChange={e => setNewPerson({...newPerson, death_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-              </div>
+              <DateRangePicker 
+                label="Birth Date" 
+                value={newPerson.birth} 
+                onChange={(val) => setNewPerson({...newPerson, birth: val})} 
+              />
+              
+              <label className="flex items-center gap-2 cursor-pointer mt-2 w-max">
+                <input 
+                  type="checkbox" 
+                  checked={newPerson.isDeceased}
+                  onChange={(e) => setNewPerson({...newPerson, isDeceased: e.target.checked})}
+                  className="w-4 h-4 text-sepia-600 border-sepia-300 rounded focus:ring-sepia-500"
+                />
+                <span className="text-sm font-semibold text-sepia-800">Person is Deceased</span>
+              </label>
+
+              {newPerson.isDeceased && (
+                <DateRangePicker 
+                  label="Death Date" 
+                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }} 
+                  onChange={(val) => setNewPerson({...newPerson, death: val})} 
+                />
+              )}
               
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>

@@ -21,12 +21,13 @@ export default function Memories() {
           .select(`
             id,
             title,
-            capture_date,
+            start_date,
+            date_text,
             description,
             type,
             artifact_url,
             memory_persons ( persons ( display_name ) ),
-            memory_places ( places ( name ) ),
+            memory_places ( places ( placename, city_town, state_region, country ) ),
             memory_events ( events ( name ) )
           `)
           .order('created_at', { ascending: false });
@@ -37,13 +38,19 @@ export default function Memories() {
         const formattedMemories = (data || []).map(m => {
           
           const people = m.memory_persons?.map(mp => mp.persons?.display_name).filter(Boolean) || [];
-          const places = m.memory_places?.map(mp => mp.places?.name).filter(Boolean) || [];
+          
+          const formatPlace = (p) => {
+            if (!p) return null;
+            const parts = [p.placename, p.city_town, p.state_region, p.country].filter(Boolean);
+            return [...new Set(parts)].join(', ');
+          };
+          const places = m.memory_places?.map(mp => formatPlace(mp.places)).filter(Boolean) || [];
           // We can also extract events similarly if desired
           
           return {
             id: m.id,
             title: m.title,
-            date: m.capture_date || '',
+            date: m.date_text || (m.start_date ? m.start_date.split('-')[0] : ''),
             description: m.description || '',
             type: m.type,
             location: places.length > 0 ? places.join(', ') : 'Unknown Location',

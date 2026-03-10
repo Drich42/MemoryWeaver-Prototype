@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Save, Trash2, Calendar, MapPin, Search, Users, Image as ImageIcon, Check, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, ZoomIn, ZoomOut, Download, AlertCircle, Edit2, Check, X, MapPin, Tag, Users, Clock, ImageIcon, Lock } from 'lucide-react';
+import DateRangePicker from '../components/DateRangePicker';
+import PlacePicker from '../components/PlacePicker';
 
 export default function MemoryDetail() {
   const { id } = useParams();
@@ -65,11 +67,14 @@ export default function MemoryDetail() {
           .select(`
             id,
             title,
-            capture_date,
+            start_date,
+            end_date,
+            date_text,
             description,
             type,
             artifact_url,
-            memory_persons ( person_id )
+            memory_persons ( person_id, role ),
+            memory_places ( place_id )
           `)
           .eq('id', id)
           .single();
@@ -84,9 +89,14 @@ export default function MemoryDetail() {
         
         setMemory({
           ...memData,
-          date: memData.capture_date || '',
+          date: { 
+            startDate: memData.start_date || null, 
+            endDate: memData.end_date || null, 
+            dateText: memData.date_text || null 
+          },
           description: memData.description || '',
-          taggedPeople: initialTaggedPeople
+          taggedPeople: initialTaggedPeople,
+          taggedPlaces: memData.memory_places?.map(mp => mp.place_id) || []
         });
         
         // 2. Fetch all available persons for the tagging UI
@@ -111,7 +121,12 @@ export default function MemoryDetail() {
 
   // Add Person Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPerson, setNewPerson] = useState({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+  const [newPerson, setNewPerson] = useState({ 
+    display_name: '', first_name: '', last_name: '', 
+    birth: { startDate: null, endDate: null, dateText: null }, 
+    death: { startDate: null, endDate: null, dateText: null },
+    isDeceased: false
+  });
   const [addingError, setAddingError] = useState(null);
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
@@ -126,8 +141,12 @@ export default function MemoryDetail() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
-          birth_date: newPerson.birth_date || null,
-          death_date: newPerson.death_date || null
+          birth_start_date: newPerson.birth.startDate || null,
+          birth_end_date: newPerson.birth.endDate || null,
+          birth_text: newPerson.birth.dateText || null,
+          death_start_date: newPerson.death.startDate || null,
+          death_end_date: newPerson.death.endDate || null,
+          death_text: newPerson.death.dateText || null
         }])
         .select()
         .single();
@@ -142,7 +161,7 @@ export default function MemoryDetail() {
       
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null }, isDeceased: false });
       await fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
@@ -181,7 +200,9 @@ export default function MemoryDetail() {
         .update({
           title: memory.title,
           type: memory.type,
-          capture_date: memory.date || null,
+          start_date: memory.date?.startDate || null,
+          end_date: memory.date?.endDate || null,
+          date_text: memory.date?.dateText || null,
           description: memory.description
         })
         .eq('id', memory.id);
@@ -212,6 +233,28 @@ export default function MemoryDetail() {
           .insert(edges);
           
         if (insertEdgesError) throw insertEdgesError;
+      }
+      
+      // 3. Synchronize memory_places tags
+      const { error: deletePlacesError } = await supabase
+        .from('memory_places')
+        .delete()
+        .eq('memory_id', memory.id);
+        
+      if (deletePlacesError) throw deletePlacesError;
+      
+      const uniquePlaces = Array.from(new Set(memory.taggedPlaces || []));
+      if (uniquePlaces.length > 0) {
+        const placeEdges = uniquePlaces.map(placeId => ({
+          memory_id: memory.id,
+          place_id: placeId
+        }));
+        
+        const { error: insertPlacesError } = await supabase
+          .from('memory_places')
+          .insert(placeEdges);
+          
+        if (insertPlacesError) throw insertPlacesError;
       }
       
       navigate('/memories');
@@ -295,16 +338,29 @@ export default function MemoryDetail() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Birth Date</label>
-                  <input value={newPerson.birth_date} onChange={e => setNewPerson({...newPerson, birth_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Death Date</label>
-                  <input value={newPerson.death_date} onChange={e => setNewPerson({...newPerson, death_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-              </div>
+              <DateRangePicker 
+                label="Birth Date" 
+                value={newPerson.birth} 
+                onChange={(val) => setNewPerson({...newPerson, birth: val})} 
+              />
+              
+              <label className="flex items-center gap-2 cursor-pointer mt-2 w-max">
+                <input 
+                  type="checkbox" 
+                  checked={newPerson.isDeceased}
+                  onChange={(e) => setNewPerson({...newPerson, isDeceased: e.target.checked})}
+                  className="w-4 h-4 text-sepia-600 border-sepia-300 rounded focus:ring-sepia-500"
+                />
+                <span className="text-sm font-semibold text-sepia-800">Person is Deceased</span>
+              </label>
+
+              {newPerson.isDeceased && (
+                <DateRangePicker 
+                  label="Death Date" 
+                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }} 
+                  onChange={(val) => setNewPerson({...newPerson, death: val})} 
+                />
+              )}
               
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>
@@ -423,25 +479,16 @@ export default function MemoryDetail() {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-sepia-800 flex items-center gap-1.5"><Calendar size={14}/> Date</label>
-                  <input 
-                    value={memory.date} 
-                    onChange={e => setMemory({...memory, date: e.target.value})} 
-                    type="date" 
-                    className="w-full bg-sepia-50 flex-1 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-sepia-800 flex items-center gap-1.5"><MapPin size={14}/> Location</label>
-                  <input 
-                    type="text"
-                    disabled
-                    value="Location tracking soon..." 
-                    className="w-full bg-sepia-50 flex-1 border border-sepia-200 rounded-lg p-2.5 text-sepia-400 focus:outline-none italic" 
-                  />
-                </div>
+              <DateRangePicker 
+                label="Memory Date (Temporal Node)" 
+                value={memory.date} 
+                onChange={(val) => setMemory({...memory, date: val})} 
+              />
+              <div className="mt-6">
+                 <PlacePicker 
+                   selectedPlaceIds={memory.taggedPlaces || []}
+                   onChange={(places) => setMemory({...memory, taggedPlaces: places})}
+                 />
               </div>
 
               <div className="space-y-1.5">

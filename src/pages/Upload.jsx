@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Upload as UploadIcon, X, Check, Search, Calendar, MapPin, Tag, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import DateRangePicker from '../components/DateRangePicker';
+import PlacePicker from '../components/PlacePicker';
 
 export default function UploadWorkflow() {
   const [step, setStep] = useState(1);
@@ -12,12 +14,13 @@ export default function UploadWorkflow() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   
   // Shared Metadata for the batch
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState({ startDate: null, endDate: null, dateText: null });
   const [description, setDescription] = useState('');
   
   // Graph Data (applies to all files in batch)
   const [selectedPeople, setSelectedPeople] = useState([]);
   const [availablePeople, setAvailablePeople] = useState([]);
+  const [selectedPlaces, setSelectedPlaces] = useState([]);
 
   // Process a single file into our batch format
   const processFile = (file) => {
@@ -73,7 +76,12 @@ export default function UploadWorkflow() {
 
   // Add Person Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPerson, setNewPerson] = useState({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+  const [newPerson, setNewPerson] = useState({ 
+    display_name: '', first_name: '', last_name: '', 
+    birth: { startDate: null, endDate: null, dateText: null }, 
+    death: { startDate: null, endDate: null, dateText: null },
+    isDeceased: false
+  });
   const [addingError, setAddingError] = useState(null);
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
@@ -119,7 +127,9 @@ export default function UploadWorkflow() {
         memoryInserts.push({
           title: fileItem.title,
           type: fileItem.type,
-          capture_date: date || null,
+          start_date: date.startDate || null,
+          end_date: date.endDate || null,
+          date_text: date.dateText || null,
           description: description,
           status: 'published',
           artifact_url: artifact_url
@@ -150,6 +160,23 @@ export default function UploadWorkflow() {
         const { error: edgeError } = await supabase.from('memory_persons').insert(edges);
         if (edgeError) throw edgeError;
       }
+
+      // If places are tagged, create edges for all new memories
+      if (selectedPlaces.length > 0 && memoryData && memoryData.length > 0) {
+        const placeEdges = [];
+        
+        memoryData.forEach(memory => {
+          selectedPlaces.forEach(placeId => {
+            placeEdges.push({
+              memory_id: memory.id,
+              place_id: placeId
+            });
+          });
+        });
+        
+        const { error: placeEdgeError } = await supabase.from('memory_places').insert(placeEdges);
+        if (placeEdgeError) throw placeEdgeError;
+      }
       
       setStep(3); // Success Step
     } catch (err) {
@@ -171,8 +198,12 @@ export default function UploadWorkflow() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
-          birth_date: newPerson.birth_date || null,
-          death_date: newPerson.death_date || null
+          birth_start_date: newPerson.birth.startDate || null,
+          birth_end_date: newPerson.birth.endDate || null,
+          birth_text: newPerson.birth.dateText || null,
+          death_start_date: newPerson.death.startDate || null,
+          death_end_date: newPerson.death.endDate || null,
+          death_text: newPerson.death.dateText || null
         }])
         .select()
         .single();
@@ -184,7 +215,7 @@ export default function UploadWorkflow() {
       
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', birth_date: '', death_date: '' });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null }, isDeceased: false });
       await fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
@@ -233,16 +264,29 @@ export default function UploadWorkflow() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Birth Date</label>
-                  <input value={newPerson.birth_date} onChange={e => setNewPerson({...newPerson, birth_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-sepia-800">Death Date</label>
-                  <input value={newPerson.death_date} onChange={e => setNewPerson({...newPerson, death_date: e.target.value})} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-                </div>
-              </div>
+              <DateRangePicker 
+                label="Birth Date" 
+                value={newPerson.birth} 
+                onChange={(val) => setNewPerson({...newPerson, birth: val})} 
+              />
+              
+              <label className="flex items-center gap-2 cursor-pointer mt-2 w-max">
+                <input 
+                  type="checkbox" 
+                  checked={newPerson.isDeceased}
+                  onChange={(e) => setNewPerson({...newPerson, isDeceased: e.target.checked})}
+                  className="w-4 h-4 text-sepia-600 border-sepia-300 rounded focus:ring-sepia-500"
+                />
+                <span className="text-sm font-semibold text-sepia-800">Person is Deceased</span>
+              </label>
+
+              {newPerson.isDeceased && (
+                <DateRangePicker 
+                  label="Death Date" 
+                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }} 
+                  onChange={(val) => setNewPerson({...newPerson, death: val})} 
+                />
+              )}
               
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>
@@ -395,14 +439,17 @@ export default function UploadWorkflow() {
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-sepia-200">
-               <div className="space-y-2">
-                 <label className="text-sm font-semibold text-sepia-800 flex items-center gap-2"><Calendar size={16}/> Date / Temporal Node</label>
-                 <input value={date} onChange={e => setDate(e.target.value)} type="date" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-3 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
-               </div>
-               <div className="space-y-2">
-                 <label className="text-sm font-semibold text-sepia-800 flex items-center gap-2"><MapPin size={16}/> Location Node</label>
-                 <input type="text" placeholder="Search places..." className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-3 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+            <div className="space-y-4 pt-4 border-t border-sepia-200">
+               <DateRangePicker 
+                 label="Memory Date (Temporal Node)" 
+                 value={date} 
+                 onChange={setDate} 
+               />
+               <div className="mt-6">
+                 <PlacePicker 
+                   selectedPlaceIds={selectedPlaces}
+                   onChange={setSelectedPlaces}
+                 />
                </div>
             </div>
             
@@ -432,7 +479,7 @@ export default function UploadWorkflow() {
               <button onClick={() => window.location.href = '/memories'} className="px-6 py-2.5 bg-sepia-100 text-sepia-900 rounded-lg font-medium hover:bg-sepia-200 transition-colors">
                 View Archive
               </button>
-              <button onClick={() => { setStep(1); setSelectedFiles([]); setSelectedPeople([]); setDate(''); setDescription(''); }} className="px-6 py-2.5 bg-sepia-800 text-sepia-50 rounded-lg font-medium hover:bg-sepia-900 transition-colors">
+              <button onClick={() => { setStep(1); setSelectedFiles([]); setSelectedPeople([]); setDate({ startDate: null, endDate: null, dateText: null }); setDescription(''); }} className="px-6 py-2.5 bg-sepia-800 text-sepia-50 rounded-lg font-medium hover:bg-sepia-900 transition-colors">
                 Upload Another
               </button>
             </div>
