@@ -24,5 +24,6 @@
     background-color: var(--color-background-light);
     color: #0f172a;
     font-family: var(--font-display);
+    overscroll-behavior-y: none;
   }
 }
