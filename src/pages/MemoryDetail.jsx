@@ -17,10 +17,28 @@ export default function MemoryDetail() {
   
   // Image Zoom State
   const [showImageModal, setShowImageModal] = useState(false);
+  const [swipeStartX, setSwipeStartX] = useState(null);
 
   const openImageModal = (e) => {
     if (e) e.stopPropagation();
     setShowImageModal(true);
+  };
+
+  // Handle Swipe Left to Zoom (Mobile)
+  const handleTouchStart = (e) => {
+    setSwipeStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (swipeStartX === null) return;
+    const swipeEndX = e.changedTouches[0].clientX;
+    const deltaX = swipeStartX - swipeEndX;
+    
+    // If swiped left by more than 75px, open zoom
+    if (deltaX > 75 && memory?.artifact_url) {
+      setShowImageModal(true);
+    }
+    setSwipeStartX(null);
   };
 
   // Available People for Tagging
@@ -273,8 +291,19 @@ export default function MemoryDetail() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500 relative">
+    <div 
+      className="max-w-7xl mx-auto flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500 relative"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       
+      {/* Swipe Hint (Mobile Only) */}
+      {memory?.artifact_url && memory?.type === 'photo' && !showImageModal && (
+        <div className="lg:hidden fixed bottom-6 right-6 bg-sepia-900/80 text-sepia-50 px-4 py-2 rounded-full backdrop-blur-md shadow-lg z-40 text-xs font-medium tracking-wide pointer-events-none animate-bounce border border-sepia-700/50">
+          Swipe ← to Zoom
+        </div>
+      )}
+
       {/* Add Person Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-sepia-950/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
