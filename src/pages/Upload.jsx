@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Upload as UploadIcon, X, Check, Search, Calendar, MapPin, Tag, Users } from 'lucide-react';
+import { Upload as UploadIcon, X, Check, Search, Calendar, MapPin, Tag, Users, ZoomIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DateRangePicker from '../components/DateRangePicker';
 import PlacePicker from '../components/PlacePicker';
+import ImageZoomModal from '../components/ImageZoomModal';
 
 export default function UploadWorkflow() {
   const [step, setStep] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Image Review State
+  const [viewingImage, setViewingImage] = useState(null);
   
   // Batch Data 
   // Each file will be an object: { file, previewUrl, title, type }
@@ -416,6 +420,42 @@ export default function UploadWorkflow() {
         {step === 2 && (
           <form onSubmit={handleCreateMemory} className="space-y-8 animate-in slide-in-from-right-4">
             
+            {/* Artifact Preview Strip */}
+            <div className="space-y-3 pb-4 border-b border-sepia-200">
+              <h3 className="text-sm font-bold text-sepia-500 uppercase tracking-wider flex items-center justify-between">
+                <span>Batch Preview</span>
+                <span className="text-[10px] text-sepia-400 bg-sepia-100 px-2 py-0.5 rounded-full capitalize">Tap to Zoom</span>
+              </h3>
+              
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sepia-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                {selectedFiles.map((item, idx) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => item.type === 'photo' && setViewingImage(item)}
+                    className={`relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border-2 snap-center transition-all ${item.type === 'photo' ? 'cursor-pointer hover:border-sepia-400 border-sepia-200' : 'opacity-70 border-sepia-100 bg-sepia-50'}`}
+                  >
+                    {item.previewUrl && item.previewUrl !== 'file_selected' ? (
+                      <>
+                        <img src={item.previewUrl} alt={item.title} className="w-full h-full object-cover select-none" draggable={false} />
+                        {item.type === 'photo' && (
+                          <div className="absolute inset-0 bg-sepia-900/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="bg-sepia-900/60 text-white p-1.5 rounded-full backdrop-blur-md">
+                              <ZoomIn size={16} />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-sepia-400">
+                        <UploadIcon size={20} className="mb-1" />
+                        <span className="text-[10px] font-bold uppercase">{item.type}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-4">
                <div className="flex items-center justify-between border-b border-sepia-200 pb-2">
                  <h3 className="text-lg font-serif font-bold text-sepia-900">Tag People (Graph Edges)</h3>
@@ -487,6 +527,15 @@ export default function UploadWorkflow() {
         )}
 
       </div>
+      
+      {/* Pinch to Zoom Modal */}
+      {viewingImage && (
+        <ImageZoomModal 
+          url={viewingImage.previewUrl} 
+          alt={viewingImage.title} 
+          onClose={() => setViewingImage(null)} 
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { ArrowLeft, Save, Trash2, ZoomIn, ZoomOut, Download, AlertCircle, Edit2, Check, X, MapPin, Tag, Users, Clock, ImageIcon, Lock } from 'lucide-react';
 import DateRangePicker from '../components/DateRangePicker';
 import PlacePicker from '../components/PlacePicker';
+import ImageZoomModal from '../components/ImageZoomModal';
 
 export default function MemoryDetail() {
   const { id } = useParams();
@@ -14,44 +15,14 @@ export default function MemoryDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   
-  // Image Zoom & Pan States
+  // Image Zoom State
   const [showImageModal, setShowImageModal] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const openImageModal = (e) => {
     if (e) e.stopPropagation();
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
     setShowImageModal(true);
   };
 
-  const handleWheel = (e) => {
-    const scaleAdjust = e.deltaY * -0.002;
-    const newScale = Math.min(Math.max(0.2, scale + scaleAdjust), 20);
-    setScale(newScale);
-  };
-
-  const handleMouseDown = (e) => {
-    if (e.target.closest('button')) return; // ignore close button clicks
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-  
   // Available People for Tagging
   const [availablePeople, setAvailablePeople] = useState([]);
   
@@ -375,37 +346,11 @@ export default function MemoryDetail() {
 
       {/* Full-Screen Image Zoom & Pan Modal */}
       {showImageModal && memory.type === 'photo' && memory.artifact_url && (
-        <div 
-          className="fixed inset-0 z-[100] bg-sepia-950/95 backdrop-blur-sm animate-in fade-in duration-200 flex items-center justify-center overflow-hidden"
-          onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          <button 
-            className="fixed top-6 right-6 text-white/50 hover:text-white bg-black/50 p-3 rounded-full backdrop-blur-md z-[110] transition-colors shadow-lg" 
-            onClick={(e) => { e.stopPropagation(); setShowImageModal(false); }}
-          >
-            <X size={24} />
-          </button>
-          
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/50 text-sm font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-md z-[110] pointer-events-none">
-            {Math.round(scale * 100)}% • Scroll to Zoom • Drag to Pan
-          </div>
-
-          <img 
-            src={memory.artifact_url} 
-            alt={memory.title} 
-            draggable={false}
-            className="max-w-[95vw] max-h-[95vh] object-contain shadow-2xl rounded-md cursor-grab active:cursor-grabbing select-none"
-            style={{ 
-              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-              transition: isDragging ? 'none' : 'transform 0.05s ease-out',
-              transformOrigin: 'center'
-            }} 
-          />
-        </div>
+        <ImageZoomModal 
+          url={memory.artifact_url} 
+          alt={memory.title} 
+          onClose={() => setShowImageModal(false)} 
+        />
       )}
 
       {/* Header Toolbar */}
