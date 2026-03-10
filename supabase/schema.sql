@@ -14,7 +14,6 @@ CREATE TABLE persons (
     display_name TEXT NOT NULL,
     first_name TEXT,
     last_name TEXT,
-    known_as TEXT,
     birth_date DATE,
     death_date DATE,
     biography TEXT,

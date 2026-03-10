@@ -16,6 +16,7 @@ export default function People() {
     display_name: '',
     first_name: '',
     last_name: '',
+    email: '',
     birth: { startDate: null, endDate: null, dateText: null },
     death: { startDate: null, endDate: null, dateText: null },
     isDeceased: false
@@ -45,7 +46,7 @@ export default function People() {
         const startYear = p.birth_start_date ? p.birth_start_date.split('-')[0] : '?';
         const endYear = p.death_start_date ? p.death_start_date.split('-')[0] : 'Present';
         const dates = `${startYear} - ${endYear}`;
-        
+
         const memCount = p.memory_persons?.[0]?.count || 0;
 
         return {
@@ -81,6 +82,7 @@ export default function People() {
           display_name: newPerson.display_name,
           first_name: newPerson.first_name || null,
           last_name: newPerson.last_name || null,
+          email: newPerson.email || null,
           birth_start_date: newPerson.birth.startDate || null,
           birth_end_date: newPerson.birth.endDate || null,
           birth_text: newPerson.birth.dateText || null,
@@ -88,12 +90,12 @@ export default function People() {
           death_end_date: newPerson.death.endDate || null,
           death_text: newPerson.death.dateText || null
         }]);
-      
+
       if (insertError) throw insertError;
-      
+
       // Reset and reload
       setShowAddModal(false);
-      setNewPerson({ display_name: '', first_name: '', last_name: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null }, isDeceased: false });
+      setNewPerson({ display_name: '', first_name: '', last_name: '', email: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null }, isDeceased: false });
       fetchPeople();
     } catch (err) {
       console.error("Error adding person:", err);
@@ -105,7 +107,7 @@ export default function People() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 relative">
-      
+
       {error && (
         <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 flex items-center gap-3">
           <AlertCircle size={20} />
@@ -123,55 +125,61 @@ export default function People() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddPerson} className="p-6 space-y-4 text-left">
               {addingError && <p className="text-red-600 text-sm">{addingError}</p>}
-              
+
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-sepia-800">Display Name *</label>
-                <input required value={newPerson.display_name} onChange={e => setNewPerson({...newPerson, display_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
+                <input required value={newPerson.display_name} onChange={e => setNewPerson({ ...newPerson, display_name: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-sepia-800">First Name</label>
-                  <input value={newPerson.first_name} onChange={e => setNewPerson({...newPerson, first_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+                  <input value={newPerson.first_name} onChange={e => setNewPerson({ ...newPerson, first_name: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-sepia-800">Last Name</label>
-                  <input value={newPerson.last_name} onChange={e => setNewPerson({...newPerson, last_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+                  <input value={newPerson.last_name} onChange={e => setNewPerson({ ...newPerson, last_name: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-sepia-800">Known As (Alias)</label>
-                <input value={newPerson.known_as} onChange={e => setNewPerson({...newPerson, known_as: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-sepia-800">Known As (Alias)</label>
+                  <input value={newPerson.known_as || ''} onChange={e => setNewPerson({ ...newPerson, known_as: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-sepia-800">Email Contact</label>
+                  <input value={newPerson.email || ''} onChange={e => setNewPerson({ ...newPerson, email: e.target.value })} type="email" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="person@example.com" />
+                </div>
               </div>
 
-              <DateRangePicker 
-                label="Birth Date" 
-                value={newPerson.birth} 
-                onChange={(val) => setNewPerson({...newPerson, birth: val})} 
+              <DateRangePicker
+                label="Birth Date"
+                value={newPerson.birth}
+                onChange={(val) => setNewPerson({ ...newPerson, birth: val })}
               />
-              
+
               <label className="flex items-center gap-2 cursor-pointer mt-2 w-max">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={newPerson.isDeceased}
-                  onChange={(e) => setNewPerson({...newPerson, isDeceased: e.target.checked})}
+                  onChange={(e) => setNewPerson({ ...newPerson, isDeceased: e.target.checked })}
                   className="w-4 h-4 text-sepia-600 border-sepia-300 rounded focus:ring-sepia-500"
                 />
                 <span className="text-sm font-semibold text-sepia-800">Person is Deceased</span>
               </label>
 
               {newPerson.isDeceased && (
-                <DateRangePicker 
-                  label="Death Date" 
-                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }} 
-                  onChange={(val) => setNewPerson({...newPerson, death: val})} 
+                <DateRangePicker
+                  label="Death Date"
+                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }}
+                  onChange={(val) => setNewPerson({ ...newPerson, death: val })}
                 />
               )}
-              
+
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>
                 <button type="submit" disabled={isAdding || !newPerson.display_name} className="flex items-center gap-2 bg-sepia-800 text-sepia-50 px-5 py-2.5 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50">
@@ -191,9 +199,9 @@ export default function People() {
         <div className="flex gap-4">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-sepia-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Find person..." 
+            <input
+              type="text"
+              placeholder="Find person..."
               className="w-full pl-10 pr-4 py-2 bg-[var(--color-paper)] border border-sepia-300 rounded-lg text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400 focus:border-transparent transition-colors shadow-sm"
             />
           </div>
@@ -209,11 +217,11 @@ export default function People() {
           // Loading Skeletons
           [1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="bg-sepia-50 p-6 rounded-xl border border-sepia-200 flex items-start gap-4 animate-pulse">
-               <div className="w-16 h-16 rounded-full bg-sepia-200 flex-shrink-0"></div>
-               <div className="flex-1 space-y-3 pt-2">
-                 <div className="h-5 bg-sepia-200 rounded w-2/3"></div>
-                 <div className="h-4 bg-sepia-200 rounded w-1/3"></div>
-               </div>
+              <div className="w-16 h-16 rounded-full bg-sepia-200 flex-shrink-0"></div>
+              <div className="flex-1 space-y-3 pt-2">
+                <div className="h-5 bg-sepia-200 rounded w-2/3"></div>
+                <div className="h-4 bg-sepia-200 rounded w-1/3"></div>
+              </div>
             </div>
           ))
         ) : people.length === 0 ? (

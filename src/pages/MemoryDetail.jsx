@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Save, Trash2, ZoomIn, ZoomOut, Download, AlertCircle, Edit2, Check, X, MapPin, Tag, Users, Clock, ImageIcon, Lock } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, ZoomIn, ZoomOut, Download, AlertCircle, Edit2, Check, X, MapPin, Tag, Users, Clock, ImageIcon, Lock, FolderOpen } from 'lucide-react';
 import DateRangePicker from '../components/DateRangePicker';
 import PlacePicker from '../components/PlacePicker';
 import ImageZoomModal from '../components/ImageZoomModal';
@@ -41,8 +41,9 @@ export default function MemoryDetail() {
     setSwipeStartX(null);
   };
 
-  // Available People for Tagging
+  // Available Graph Tags
   const [availablePeople, setAvailablePeople] = useState([]);
+  const [availableCollections, setAvailableCollections] = useState([]);
   
   useEffect(() => {
     async function fetchData() {
@@ -63,7 +64,8 @@ export default function MemoryDetail() {
             type,
             artifact_url,
             memory_persons ( person_id, role ),
-            memory_places ( place_id )
+            memory_places ( place_id ),
+            memory_collections ( collection_id )
           `)
           .eq('id', id)
           .single();
@@ -85,11 +87,12 @@ export default function MemoryDetail() {
           },
           description: memData.description || '',
           taggedPeople: initialTaggedPeople,
-          taggedPlaces: memData.memory_places?.map(mp => mp.place_id) || []
+          taggedPlaces: memData.memory_places?.map(mp => mp.place_id) || [],
+          taggedCollections: memData.memory_collections?.map(mc => mc.collection_id) || []
         });
         
-        // 2. Fetch all available persons for the tagging UI
-        await fetchPeople();
+        // 2. Fetch all available persons and collections for the tagging UI
+        await Promise.all([fetchPeople(), fetchCollections()]);
         
       } catch (err) {
         console.error("Error fetching detail:", err);
@@ -106,6 +109,12 @@ export default function MemoryDetail() {
     if (!supabase) return;
     const { data } = await supabase.from('persons').select('id, display_name').order('created_at', { ascending: false });
     if (data) setAvailablePeople(data);
+  };
+
+  const fetchCollections = async () => {
+    if (!supabase) return;
+    const { data } = await supabase.from('collections').select('id, name').order('name', { ascending: true });
+    if (data) setAvailableCollections(data);
   };
 
   // Add Person Modal State
@@ -167,6 +176,17 @@ export default function MemoryDetail() {
         return { ...prev, taggedPeople: prev.taggedPeople.filter(p => p.id !== personId) };
       } else {
         return { ...prev, taggedPeople: [...prev.taggedPeople, { id: personId, role: 'subject' }] };
+      }
+    });
+  };
+
+  const toggleCollectionTag = (collectionId) => {
+    setMemory(prev => {
+      const isTagged = prev.taggedCollections.includes(collectionId);
+      if (isTagged) {
+        return { ...prev, taggedCollections: prev.taggedCollections.filter(c => c !== collectionId) };
+      } else {
+        return { ...prev, taggedCollections: [...prev.taggedCollections, collectionId] };
       }
     });
   };
@@ -244,6 +264,28 @@ export default function MemoryDetail() {
           .insert(placeEdges);
           
         if (insertPlacesError) throw insertPlacesError;
+      }
+
+      // 4. Synchronize memory_collections tags
+      const { error: deleteCollectionsError } = await supabase
+        .from('memory_collections')
+        .delete()
+        .eq('memory_id', memory.id);
+        
+      if (deleteCollectionsError) throw deleteCollectionsError;
+      
+      const uniqueCollections = Array.from(new Set(memory.taggedCollections || []));
+      if (uniqueCollections.length > 0) {
+        const collectionEdges = uniqueCollections.map(collectionId => ({
+          memory_id: memory.id,
+          collection_id: collectionId
+        }));
+        
+        const { error: insertCollectionsError } = await supabase
+          .from('memory_collections')
+          .insert(collectionEdges);
+          
+        if (insertCollectionsError) throw insertCollectionsError;
       }
       
       navigate('/memories');
@@ -544,6 +586,35 @@ export default function MemoryDetail() {
                 {availablePeople.length === 0 && (
                   <div className="w-full text-center py-6 border-2 border-dashed border-sepia-200 rounded-lg text-sepia-500 text-sm">
                     No persons in relational database.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Collections Multi-Select */}
+            <div className="pt-4 border-t border-sepia-100">
+              <h4 className="text-xs font-bold text-sepia-500 uppercase tracking-wider mb-3 flex items-center gap-2"><FolderOpen size={14} /> Add to Collections</h4>
+              <div className="flex flex-wrap gap-2">
+                {availableCollections.map(collection => {
+                  const isSelected = memory.taggedCollections.includes(collection.id);
+                  return (
+                    <button 
+                      key={collection.id}
+                      onClick={() => toggleCollectionTag(collection.id)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all duration-200 flex items-center gap-1.5
+                        ${isSelected 
+                          ? 'bg-sepia-700 text-sepia-50 border-sepia-800 shadow-sm opacity-60' 
+                          : 'bg-[var(--color-paper)] text-sepia-700 border-sepia-300 hover:bg-sepia-50 hover:border-sepia-400'
+                        }`}
+                    >
+                      {isSelected && <Check size={14} />}
+                      {collection.name}
+                    </button>
+                  )
+                })}
+                {availableCollections.length === 0 && (
+                  <div className="w-full text-center py-4 border-2 border-dashed border-sepia-200 rounded-lg text-sepia-500 text-sm">
+                    No collections created yet.
                   </div>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './lib/supabase';
@@ -8,6 +8,8 @@ import MemoryDetail from './pages/MemoryDetail';
 import People from './pages/People';
 import PersonDetail from './pages/PersonDetail';
 import UploadWorkflow from './pages/Upload';
+import Collections from './pages/Collections';
+import CollectionDetail from './pages/CollectionDetail';
 import Auth from './pages/Auth';
 
 function ProtectedRoute({ children }) {
@@ -40,10 +42,25 @@ function AppLayout() {
     { label: 'Archives', icon: 'folder_shared', path: '/archives' },
   ];
   
-  const collectionsItems = [
-    { label: 'Woven Stories', icon: 'history_edu', path: '/stories' },
-    { label: 'Artifact Gallery', icon: 'photo_library', path: '/memories' },
-  ];
+  const [userCollections, setUserCollections] = useState([]);
+
+  useEffect(() => {
+    async function fetchCollections() {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('collections')
+          .select('id, name')
+          .order('name');
+        if (!error && data) {
+          setUserCollections(data);
+        }
+      } catch (e) {
+        console.error("Failed to load collections for sidebar:", e);
+      }
+    }
+    fetchCollections();
+  }, [user, location.pathname]); // Re-fetch occasionally when routing
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -104,24 +121,54 @@ function AppLayout() {
             <div>
                <div className="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Collections</div>
                <div className="space-y-2">
-                 {collectionsItems.map((item) => {
-                   const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                 {/* Hub Link */}
+                 <Link
+                   to="/collections"
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                     location.pathname === '/collections'
+                       ? 'bg-primary/10 text-primary font-semibold'
+                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                   }`}
+                 >
+                   <span className="material-symbols-outlined">collections</span>
+                   <span>Artifact Gallery</span>
+                 </Link>
+                 
+                 {/* Dynamic User Collections */}
+                 {userCollections.map((collection) => {
+                   const path = `/collections/${collection.id}`;
+                   const isActive = location.pathname === path;
                    return (
                       <Link
-                        key={item.path}
-                        to={item.path}
+                        key={collection.id}
+                        to={path}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                        className={`flex items-center gap-3 px-4 py-1.5 rounded-lg transition-colors text-sm ${
                           isActive
-                            ? 'bg-primary/10 text-primary font-semibold'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'text-primary font-semibold'
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                         }`}
                       >
-                        <span className="material-symbols-outlined">{item.icon}</span>
-                        <span>{item.label}</span>
+                        <span className="material-symbols-outlined text-[18px]">folder_open</span>
+                        <span className="truncate">{collection.name}</span>
                       </Link>
                    );
                  })}
+                 
+                 {/* Static Stories Link */}
+                 <Link
+                   to="/stories"
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className={`flex items-center gap-3 px-3 py-2 mt-4 rounded-lg transition-colors ${
+                     location.pathname.startsWith('/stories')
+                       ? 'bg-primary/10 text-primary font-semibold'
+                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                   }`}
+                 >
+                   <span className="material-symbols-outlined">history_edu</span>
+                   <span>Woven Stories</span>
+                 </Link>
                </div>
             </div>
            
@@ -150,40 +197,23 @@ function AppLayout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col overflow-y-auto parchment-texture relative w-full">
-          {/* Header */}
-          <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-primary/10 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-2 md:gap-4">
-            
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button 
-                className="md:hidden size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-primary transition-colors"
-                onClick={() => setIsMobileMenuOpen(true)}
-              >
-                <span className="material-symbols-outlined">menu</span>
-              </button>
+        <main className="flex-1 flex flex-col min-w-0 bg-[#f4ebd0] overflow-y-auto w-full">
+          <header className="sticky top-0 z-30 flex items-center justify-between p-4 bg-[#f4ebd0]/90 backdrop-blur-sm border-b border-sepia-200 lg:hidden">
+            <div className="flex items-center gap-3">
+              <div className="size-8 bg-sepia-800 rounded-lg flex items-center justify-center text-sepia-50">
+                <span className="material-symbols-outlined text-sm">auto_stories</span>
+              </div>
+              <h1 className="text-xl font-serif font-bold text-sepia-900">Memory Weaver</h1>
             </div>
-
-            <div className="relative w-full max-w-md mx-auto hidden md:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-              <input 
-                className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm outline-none" 
-                placeholder="Search ancestors, artifacts, or threads..." 
-                type="text"
-              />
-            </div>
-            
-            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-              <button className="size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-primary transition-colors">
-                <span className="material-symbols-outlined">notifications</span>
-              </button>
-              <Link to="/upload" className="bg-primary text-white px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity">
-                <span className="material-symbols-outlined text-lg">add</span>
-                New Memory
-              </Link>
-            </div>
+            <button 
+              className="p-2 text-sepia-700 bg-sepia-200/50 rounded-lg hover:bg-sepia-200"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
           </header>
-
-          <div className="flex-1 p-4 md:p-8 overflow-x-hidden">
+          
+          <div className="flex-1 p-4 md:p-8">
             <Outlet />
           </div>
         </main>
@@ -194,25 +224,25 @@ function AppLayout() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
-          {/* Public Auth Route */}
           <Route path="/auth" element={<Auth />} />
-          
-          {/* Protected Main App Routes */}
           <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
-            <Route path="memories" element={<Memories />} />
+            <Route path="upload" element={<UploadWorkflow />} />
+            <Route path="archives" element={<Memories />} />
+            <Route path="memories" element={<Navigate to="/archives" replace />} />
             <Route path="memories/:id" element={<MemoryDetail />} />
             <Route path="people" element={<People />} />
             <Route path="people/:id" element={<PersonDetail />} />
-            <Route path="upload" element={<UploadWorkflow />} />
+            <Route path="collections" element={<Collections />} />
+            <Route path="collections/:id" element={<CollectionDetail />} />
             <Route path="settings" element={<div className="text-center p-12 text-sepia-600">Settings and Trust Groups configuration</div>} />
           </Route>
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

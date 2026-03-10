@@ -17,6 +17,16 @@ export default function Auth() {
     setError(null);
 
     try {
+      if (!isLogin) {
+        // Prevent dummy emails in production to stop Supabase bounce rate warnings
+        const isDummyEmail = email.includes('@example') || email.includes('@test') || email.includes('test_');
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (isDummyEmail && !isLocalhost) {
+          throw new Error("Please use a valid email address for signup.");
+        }
+      }
+
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -32,7 +42,7 @@ export default function Auth() {
         // Simple success message for non-email-confirmed auth flows
         alert("Account created successfully!");
       }
-      
+
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -43,7 +53,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-[var(--color-parchment)] flex items-center justify-center p-4 selection:bg-sepia-200">
-      
+
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-sepia-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse"></div>
@@ -51,7 +61,7 @@ export default function Auth() {
       </div>
 
       <div className="w-full max-w-md bg-[var(--color-paper)] rounded-2xl shadow-xl border border-sepia-200 p-8 relative z-10 animate-in slide-in-from-bottom-4 duration-500">
-        
+
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 bg-sepia-800 rounded-2xl flex items-center justify-center text-sepia-50 shadow-lg mb-4 transform -rotate-6">
             <BookOpen size={32} />
@@ -72,8 +82,8 @@ export default function Auth() {
         <form onSubmit={handleAuth} className="space-y-5">
           <div className="space-y-1.5">
             <label className="text-sm font-bold text-sepia-700 uppercase tracking-wider">Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -81,13 +91,13 @@ export default function Auth() {
               placeholder="archivist@family.com"
             />
           </div>
-          
+
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label className="text-sm font-bold text-sepia-700 uppercase tracking-wider">Password</label>
             </div>
-            <input 
-              type="password" 
+            <input
+              type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -96,8 +106,8 @@ export default function Auth() {
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full py-3 px-4 bg-sepia-800 hover:bg-sepia-900 text-sepia-50 rounded-xl font-bold text-lg shadow-md transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
           >
@@ -112,7 +122,7 @@ export default function Auth() {
         <div className="mt-8 pt-6 border-t border-sepia-100 text-center">
           <p className="text-sm text-sepia-600">
             {isLogin ? "Don't have an archive yet? " : "Already tracking your history? "}
-            <button 
+            <button
               onClick={() => setIsLogin(!isLogin)}
               className="font-bold text-sepia-800 hover:text-sepia-600 hover:underline transition-colors"
             >

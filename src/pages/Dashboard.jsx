@@ -8,7 +8,7 @@ export default function Dashboard() {
   const [recentArtifacts, setRecentArtifacts] = useState([]);
   const [storytellers, setStorytellers] = useState([]);
   const [collections, setCollections] = useState([]);
-  
+
   // Lineage Stats
   const [personCount, setPersonCount] = useState(0);
   const [linkCount, setLinkCount] = useState(0);
@@ -25,7 +25,7 @@ export default function Dashboard() {
           .not('artifact_url', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
-          
+
         setRecentArtifacts(artifactsData || []);
 
         // 2. Fetch Key Storytellers (Top 3 persons)
@@ -34,23 +34,30 @@ export default function Dashboard() {
           .select('id, display_name, biography, first_name')
           .order('created_at', { ascending: false })
           .limit(3);
-          
+
         setStorytellers(personsData || []);
 
         // 3. Fetch Active Threads (Collections)
         const { data: collectionsData } = await supabase
           .from('collections')
-          .select('id, name, description, created_at')
+          .select('*, memory_collections(memories(artifact_url, thumbnail_url))')
           .order('created_at', { ascending: false })
           .limit(3);
-          
-        setCollections(collectionsData || []);
+
+        const colsWithImages = (collectionsData || []).map(col => {
+          const memories = col.memory_collections?.map(mc => mc.memories).filter(Boolean) || [];
+          const validImages = memories.filter(m => m.artifact_url || m.thumbnail_url).map(m => m.thumbnail_url || m.artifact_url);
+          const randomImage = validImages.length > 0 ? validImages[Math.floor(Math.random() * validImages.length)] : null;
+          return { ...col, randomImage };
+        });
+
+        setCollections(colsWithImages);
 
         // 4. Fetch Lineage Stats (Totals) // using head: true gives count without returning data
         const { count: pCount } = await supabase
           .from('persons')
           .select('*', { count: 'exact', head: true });
-          
+
         const { count: relCount } = await supabase
           .from('person_relationships')
           .select('*', { count: 'exact', head: true });
@@ -95,16 +102,16 @@ export default function Dashboard() {
           </div>
           <Link to="#" className="text-sm font-semibold text-primary hover:underline">View all threads</Link>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {collections.length === 0 ? (
             <div className="col-span-full border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-2xl p-8 text-center bg-slate-50 dark:bg-slate-900/50">
-               <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">auto_stories</span>
-               <h3 className="text-lg font-bold text-slate-600 dark:text-slate-400">No Memory Threads Yet</h3>
-               <p className="text-sm text-slate-500 mb-4 text-balance">Group related memories into Collections to track specific family storylines or epochs.</p>
-               <button className="text-sm font-bold bg-primary text-white px-4 py-2 rounded-xl shadow-md hover:bg-primary/90 transition-colors">
-                  Create Collection
-               </button>
+              <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">auto_stories</span>
+              <h3 className="text-lg font-bold text-slate-600 dark:text-slate-400">No Memory Threads Yet</h3>
+              <p className="text-sm text-slate-500 mb-4 text-balance">Group related memories into Collections to track specific family storylines or epochs.</p>
+              <button className="text-sm font-bold bg-primary text-white px-4 py-2 rounded-xl shadow-md hover:bg-primary/90 transition-colors">
+                Create Collection
+              </button>
             </div>
           ) : (
             collections.map((col, i) => {
@@ -115,11 +122,15 @@ export default function Dashboard() {
                 "border-b-primary/40"
               ];
               const bColor = colorClasses[i % colorClasses.length];
-              
+
               return (
-                <div key={col.id} className={`group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all border-b-4 ${bColor}`}>
+                <Link to={`/collections/${col.id}`} key={col.id} className={`group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all border-b-4 ${bColor} block cursor-pointer`}>
                   <div className="h-48 overflow-hidden relative bg-slate-200 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-6xl text-slate-300">auto_awesome_mosaic</span>
+                    {col.randomImage ? (
+                      <img src={col.randomImage} alt={col.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <span className="material-symbols-outlined text-6xl text-slate-300">auto_awesome_mosaic</span>
+                    )}
                     <div className="absolute top-4 left-4 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter shadow-sm">
                       {format(new Date(col.created_at), 'MMM yyyy')}
                     </div>
@@ -128,10 +139,12 @@ export default function Dashboard() {
                     <h3 className="text-lg font-bold group-hover:text-primary transition-colors">{col.name}</h3>
                     <p className="text-slate-500 text-sm mt-2 line-clamp-2 leading-relaxed">{col.description || 'No description provided.'}</p>
                     <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Collection</span>
+                      <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1 group-hover:text-primary transition-colors">
+                        Collection <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })
           )}
@@ -146,17 +159,17 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold text-navy-muted dark:text-slate-100">Recent Artifacts</h2>
           </div>
           <Link to="/memories" className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
-             See Archive <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            See Archive <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
         </div>
-        
+
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {recentArtifacts.map(artifact => (
             <Link key={artifact.id} to={`/memories/${artifact.id}`} className="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
               {artifact.type === 'photo' || artifact.type === 'document' ? (
-                <img 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" 
-                  alt={artifact.title} 
+                <img
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
+                  alt={artifact.title}
                   src={artifact.thumbnail_url || artifact.artifact_url}
                 />
               ) : (
@@ -169,12 +182,12 @@ export default function Dashboard() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                 <span className="text-[10px] text-white font-medium truncate w-full block">
                   {artifact.title || 'Untitled'}
-                  {artifact.date_text ? `, ${artifact.date_text}` : (artifact.start_date ? `, ${artifact.start_date.substring(0,4)}` : '')}
+                  {artifact.date_text ? `, ${artifact.date_text}` : (artifact.start_date ? `, ${artifact.start_date.substring(0, 4)}` : '')}
                 </span>
               </div>
             </Link>
           ))}
-          
+
           {/* Upload Button fills remaining space up to 6 minimum visual blocks, but always show at least one */}
           <Link to="/upload" className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-300 flex flex-col items-center justify-center group cursor-pointer hover:border-primary transition-all shadow-sm hover:bg-slate-50">
             <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">add_a_photo</span>
@@ -195,7 +208,7 @@ export default function Dashboard() {
               <span className="material-symbols-outlined text-slate-400">fullscreen</span>
             </Link>
           </div>
-          
+
           <div className="flex-1 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-200">
             <div className="flex items-center justify-center gap-4 mb-5">
               <div className="size-16 rounded-full border-2 border-primary bg-white flex items-center justify-center shadow-sm">
@@ -212,10 +225,10 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            
+
             <p className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-1">Your Archival Graph</p>
             <p className="text-sm font-medium text-slate-500">{personCount} Integrated Actors • {linkCount} Relationship Nodes</p>
-            
+
             <Link to="/people" className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-primary px-5 py-2.5 bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors">
               <span>Explore Graph Engine</span>
               <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -234,7 +247,7 @@ export default function Dashboard() {
               View Directory
             </Link>
           </div>
-          
+
           <div className="space-y-3 flex-1">
             {storytellers.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-70">
@@ -246,9 +259,9 @@ export default function Dashboard() {
                 <Link key={person.id} to={`/people/${person.id}`} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 group">
                   <div className="flex items-center gap-4">
                     <div className={`size-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-sm
-                      ${i === 0 ? 'bg-accent-gold/20 text-accent-gold border border-accent-gold/30' : 
-                        i === 1 ? 'bg-primary/20 text-primary border border-primary/30' : 
-                        'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                      ${i === 0 ? 'bg-accent-gold/20 text-accent-gold border border-accent-gold/30' :
+                        i === 1 ? 'bg-primary/20 text-primary border border-primary/30' :
+                          'bg-slate-100 text-slate-500 border border-slate-200'}`}>
                       {person.first_name ? person.first_name.charAt(0) : person.display_name.charAt(0)}
                     </div>
                     <div>
@@ -262,7 +275,7 @@ export default function Dashboard() {
                 </Link>
               ))
             )}
-            
+
             <Link to="/people" className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border border-dashed border-slate-300 hover:border-primary/50 group mt-4">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-primary/10 transition-colors">

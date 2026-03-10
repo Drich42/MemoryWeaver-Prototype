@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload as UploadIcon, X, Check, Search, Calendar, MapPin, Tag, Users, ZoomIn } from 'lucide-react';
+import { Upload as UploadIcon, X, Check, Search, Calendar, MapPin, Tag, Users, ZoomIn, FolderOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DateRangePicker from '../components/DateRangePicker';
 import PlacePicker from '../components/PlacePicker';
@@ -25,6 +25,8 @@ export default function UploadWorkflow() {
   const [selectedPeople, setSelectedPeople] = useState([]);
   const [availablePeople, setAvailablePeople] = useState([]);
   const [selectedPlaces, setSelectedPlaces] = useState([]);
+  const [selectedCollections, setSelectedCollections] = useState([]);
+  const [availableCollections, setAvailableCollections] = useState([]);
 
   // Process a single file into our batch format
   const processFile = (file) => {
@@ -94,9 +96,16 @@ export default function UploadWorkflow() {
     const { data } = await supabase.from('persons').select('id, display_name').order('created_at', { ascending: false });
     if (data) setAvailablePeople(data);
   };
+  
+  const fetchCollections = async () => {
+    if (!supabase) return;
+    const { data } = await supabase.from('collections').select('id, name').order('name', { ascending: true });
+    if (data) setAvailableCollections(data);
+  };
 
   useEffect(() => {
     fetchPeople();
+    fetchCollections();
   }, []);
 
   const handleCreateMemory = async (e) => {
@@ -182,6 +191,23 @@ export default function UploadWorkflow() {
         if (placeEdgeError) throw placeEdgeError;
       }
       
+      // If collections are tagged, create edges for all new memories
+      if (selectedCollections.length > 0 && memoryData && memoryData.length > 0) {
+        const collectionEdges = [];
+        
+        memoryData.forEach(memory => {
+          selectedCollections.forEach(collectionId => {
+            collectionEdges.push({
+              memory_id: memory.id,
+              collection_id: collectionId
+            });
+          });
+        });
+        
+        const { error: collEdgeError } = await supabase.from('memory_collections').insert(collectionEdges);
+        if (collEdgeError) throw collEdgeError;
+      }
+      
       setStep(3); // Success Step
     } catch (err) {
       console.error("Batch upload failed:", err);
@@ -232,6 +258,12 @@ export default function UploadWorkflow() {
   const togglePerson = (id) => {
     setSelectedPeople(prev => 
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
+
+  const toggleCollection = (id) => {
+    setSelectedCollections(prev => 
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
     );
   };
 
@@ -456,9 +488,9 @@ export default function UploadWorkflow() {
               </div>
             </div>
 
-            <div className="space-y-4">
+             <div className="space-y-4">
                <div className="flex items-center justify-between border-b border-sepia-200 pb-2">
-                 <h3 className="text-lg font-serif font-bold text-sepia-900">Tag People (Graph Edges)</h3>
+                 <h3 className="text-lg font-serif font-bold text-sepia-900 flex items-center gap-2"><Users size={18} className="text-sepia-600" /> Tag People</h3>
                  <button type="button" onClick={() => setShowAddModal(true)} className="text-sm font-medium text-sepia-700 bg-sepia-100 hover:bg-sepia-200 border border-sepia-300 px-3 py-1 rounded-md transition-colors flex items-center gap-1">
                    <Users size={14} /> New Person
                  </button>
@@ -476,6 +508,24 @@ export default function UploadWorkflow() {
                    </button>
                  ))}
                  {availablePeople.length === 0 && <span className="text-sepia-500 text-sm italic">No people found in database.</span>}
+               </div>
+
+               <div className="flex items-center justify-between border-b border-sepia-200 pb-2 mt-8">
+                 <h3 className="text-lg font-serif font-bold text-sepia-900 flex items-center gap-2"><FolderOpen size={18} className="text-sepia-600" /> Add to Collections</h3>
+               </div>
+               
+               <div className="flex flex-wrap gap-3">
+                 {availableCollections.map(collection => (
+                   <button 
+                     key={collection.id}
+                     type="button"
+                     onClick={() => toggleCollection(collection.id)}
+                     className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${selectedCollections.includes(collection.id) ? 'bg-sepia-700 text-sepia-50 border-sepia-800 shadow-sm' : 'bg-[var(--color-paper)] text-sepia-700 border-sepia-300 hover:bg-sepia-50'}`}
+                   >
+                     {collection.name}
+                   </button>
+                 ))}
+                 {availableCollections.length === 0 && <span className="text-sepia-500 text-sm italic">No collections created yet. Build them in the Collections tab.</span>}
                </div>
             </div>
 
@@ -519,7 +569,7 @@ export default function UploadWorkflow() {
               <button onClick={() => window.location.href = '/memories'} className="px-6 py-2.5 bg-sepia-100 text-sepia-900 rounded-lg font-medium hover:bg-sepia-200 transition-colors">
                 View Archive
               </button>
-              <button onClick={() => { setStep(1); setSelectedFiles([]); setSelectedPeople([]); setDate({ startDate: null, endDate: null, dateText: null }); setDescription(''); }} className="px-6 py-2.5 bg-sepia-800 text-sepia-50 rounded-lg font-medium hover:bg-sepia-900 transition-colors">
+              <button onClick={() => { setStep(1); setSelectedFiles([]); setSelectedPeople([]); setSelectedPlaces([]); setSelectedCollections([]); setDate({ startDate: null, endDate: null, dateText: null }); setDescription(''); }} className="px-6 py-2.5 bg-sepia-800 text-sepia-50 rounded-lg font-medium hover:bg-sepia-900 transition-colors">
                 Upload Another
               </button>
             </div>
