@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [recentArtifacts, setRecentArtifacts] = useState([]);
   const [storytellers, setStorytellers] = useState([]);
   const [collections, setCollections] = useState([]);
+  const [pendingShares, setPendingShares] = useState([]);
 
   // Lineage Stats
   const [personCount, setPersonCount] = useState(0);
@@ -53,6 +56,16 @@ export default function Dashboard() {
 
         setCollections(colsWithImages);
 
+        // Fetch Pending Shares
+        const { data: sharesData } = await supabase
+          .from('shares')
+          .select('*, memories(id, title, artifact_url, thumbnail_url, type), collections(id, name)')
+          .eq('status', 'pending')
+          .eq('recipient_email', user?.email)
+          .order('created_at', { ascending: false });
+
+        setPendingShares(sharesData || []);
+
         // 4. Fetch Lineage Stats (Totals) // using head: true gives count without returning data
         const { count: pCount } = await supabase
           .from('persons')
@@ -92,6 +105,55 @@ export default function Dashboard() {
         <h1 className="text-3xl font-black text-navy-muted dark:text-slate-100">Memory Dashboard</h1>
         <p className="text-slate-500 mt-1 italic">"The threads of the past are the fabric of our future."</p>
       </div>
+
+      {/* Inbox / Pending Shares */}
+      {pendingShares.length > 0 && (
+        <section className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl p-6 shadow-sm mb-8 animate-in slide-in-from-top-4">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary">mark_email_unread</span>
+            <h2 className="text-xl font-bold text-navy-muted dark:text-slate-100">Incoming Shares</h2>
+            <span className="bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">{pendingShares.length}</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingShares.map(share => {
+              const isCollection = !!share.collection_id;
+              const mem = share.memories;
+              const coll = share.collections;
+
+              const imageUrl = !isCollection && (mem?.thumbnail_url || mem?.artifact_url);
+              const title = isCollection ? coll?.name : (mem?.title || 'Shared Artifact');
+              const icon = isCollection ? 'folder_shared' : 'inventory_2';
+
+              return (
+                <div key={share.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex gap-4 items-center shadow-sm hover:border-primary/50 transition-colors">
+                  <div className={`h-16 w-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border ${isCollection ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'}`}>
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-3xl">{icon}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{title}</p>
+                    <p className="text-xs text-slate-500 mb-2 truncate">To: {share.recipient_email}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1 relative z-0">
+                        {isCollection && <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[9px] uppercase font-bold rounded">Collection</span>}
+                        {share.include_context && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] uppercase font-bold rounded" title="Includes context/story">Ctx</span>}
+                        {share.include_bio && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] uppercase font-bold rounded" title="Includes biography data">Bio</span>}
+                      </div>
+                      <Link to={`/share-review/${share.id}`} className="text-xs font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
+                        Review <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Memory Threads Section */}
       <section>
@@ -164,29 +226,42 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {recentArtifacts.map(artifact => (
-            <Link key={artifact.id} to={`/memories/${artifact.id}`} className="aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer border-2 border-transparent hover:border-primary transition-all">
-              {artifact.type === 'photo' || artifact.type === 'document' ? (
-                <img
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
-                  alt={artifact.title}
-                  src={artifact.thumbnail_url || artifact.artifact_url}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-slate-100">
-                  <span className="material-symbols-outlined text-4xl text-slate-300">
-                    {artifact.type === 'video' ? 'videocam' : 'audiotrack'}
+          {recentArtifacts.map((artifact, i) => {
+            // Give them a slight alternating rotation for a scattered polaroid effect
+            const rotateClass = i % 2 === 0 ? "rotate-2" : "-rotate-2";
+            return (
+              <Link key={artifact.id} to={`/memories/${artifact.id}`} className={`bg-white p-2 border border-gray-200 shadow-md hover:shadow-xl transition-all duration-300 relative group cursor-pointer block transform hover:-translate-y-2 hover:scale-105 z-0 hover:z-10 ${rotateClass}`}>
+                <div className="aspect-square bg-slate-100 overflow-hidden border border-gray-100 relative">
+                  {artifact.type === 'photo' || artifact.type === 'document' ? (
+                    <img
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      alt={artifact.title}
+                      src={artifact.thumbnail_url || artifact.artifact_url}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                      <span className="material-symbols-outlined text-4xl text-slate-300">
+                        {artifact.type === 'video' ? 'videocam' : 'audiotrack'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded text-[9px] font-bold text-white uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
+                    {artifact.type}
+                  </div>
+                </div>
+
+                {/* Writable space */}
+                <div className="pt-3 pb-1 px-1 bg-white text-center">
+                  <span className="text-[11px] font-semibold text-gray-800 font-serif leading-tight line-clamp-2 block group-hover:text-primary transition-colors">
+                    {artifact.title || 'Untitled'}
+                  </span>
+                  <span className="text-[9px] text-gray-500 font-medium block mt-1">
+                    {artifact.date_text ? artifact.date_text : (artifact.start_date ? artifact.start_date.substring(0, 4) : '')}
                   </span>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                <span className="text-[10px] text-white font-medium truncate w-full block">
-                  {artifact.title || 'Untitled'}
-                  {artifact.date_text ? `, ${artifact.date_text}` : (artifact.start_date ? `, ${artifact.start_date.substring(0, 4)}` : '')}
-                </span>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
 
           {/* Upload Button fills remaining space up to 6 minimum visual blocks, but always show at least one */}
           <Link to="/upload" className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-300 flex flex-col items-center justify-center group cursor-pointer hover:border-primary transition-all shadow-sm hover:bg-slate-50">

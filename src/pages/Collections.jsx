@@ -32,17 +32,30 @@ export default function Collections() {
           name,
           description,
           created_at,
-          memory_collections ( count )
+          memory_collections (
+            memories (
+              artifact_url,
+              thumbnail_url
+            )
+          )
         `)
         .order('name');
 
       if (fetchError) throw fetchError;
 
-      // Format counts
-      const formatted = (data || []).map(c => ({
-        ...c,
-        itemCount: c.memory_collections?.[0]?.count || 0
-      }));
+      // Format counts and extract a random image per collection
+      const formatted = (data || []).map(c => {
+        const memoryEdges = c.memory_collections || [];
+        const memories = memoryEdges.map(mc => mc.memories).filter(Boolean);
+        const validImages = memories.filter(m => m.artifact_url || m.thumbnail_url).map(m => m.thumbnail_url || m.artifact_url);
+        const randomImage = validImages.length > 0 ? validImages[Math.floor(Math.random() * validImages.length)] : null;
+
+        return {
+          ...c,
+          itemCount: memoryEdges.length,
+          randomImage
+        };
+      });
 
       setCollections(formatted);
     } catch (err) {
@@ -133,16 +146,29 @@ export default function Collections() {
             <div
               key={collection.id}
               // onClick={() => navigate(`/collections/${collection.id}`)} // Future detail page
-              className="group cursor-pointer flex flex-col bg-[var(--color-paper)] border border-sepia-200 rounded-xl p-6 hover:border-sepia-400 hover:shadow-md transition-all relative"
+              className="group cursor-pointer flex flex-col bg-[var(--color-paper)] border border-sepia-200 rounded-xl p-6 hover:border-sepia-400 hover:shadow-md transition-all relative overflow-hidden"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-sepia-100 text-sepia-700 rounded-lg group-hover:bg-sepia-800 group-hover:text-sepia-50 transition-colors">
-                  <FolderOpen size={24} />
+              {collection.randomImage ? (
+                <div className="h-40 -mx-6 -mt-6 mb-4 relative overflow-hidden bg-sepia-100">
+                  <img src={collection.randomImage} alt={collection.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/40 to-transparent pointer-events-none"></div>
+                  <button className="absolute top-3 right-3 text-white/90 hover:text-white p-1 drop-shadow-md z-10 transition-colors">
+                    <MoreVertical size={18} />
+                  </button>
+                  <div className="absolute bottom-3 left-4 p-2 bg-[var(--color-paper)]/90 backdrop-blur-sm text-sepia-700 rounded-lg shadow-sm border border-white/20">
+                    <FolderOpen size={20} />
+                  </div>
                 </div>
-                <button className="text-sepia-400 hover:text-sepia-700 p-1">
-                  <MoreVertical size={18} />
-                </button>
-              </div>
+              ) : (
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-sepia-100 text-sepia-700 rounded-lg group-hover:bg-sepia-800 group-hover:text-sepia-50 transition-colors">
+                    <FolderOpen size={24} />
+                  </div>
+                  <button className="text-sepia-400 hover:text-sepia-700 p-1">
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
+              )}
               <h3 className="text-xl md:text-2xl font-bold font-serif text-sepia-900 leading-tight mb-2 group-hover:text-sepia-700 transition-colors">
                 {collection.name}
               </h3>

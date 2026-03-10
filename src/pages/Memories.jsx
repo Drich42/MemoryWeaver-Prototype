@@ -257,42 +257,44 @@ export default function Memories() {
               <div
                 key={memory.id}
                 onClick={() => handleCardClick(memory.id)}
-                className={`group cursor-pointer flex flex-col bg-[var(--color-paper)] border rounded-xl overflow-hidden hover:shadow-lg transition-all relative ${isSelected ? 'border-sepia-800 ring-2 ring-sepia-800 ring-offset-2' : 'border-sepia-200 hover:border-sepia-400'
+                className={`group cursor-pointer flex flex-col bg-white border border-gray-200 p-3 shadow-md hover:shadow-xl transition-all duration-300 relative transform hover:-translate-y-1 hover:rotate-1 ${isSelected ? 'ring-4 ring-sepia-600' : ''
                   }`}
               >
                 {/* Selection Checkbox Overlay */}
                 {selectMode && (
-                  <div className="absolute top-3 right-3 z-20">
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-sepia-800 border-sepia-800 text-white' : 'bg-white/80 border-sepia-400 backdrop-blur-sm'
+                  <div className="absolute top-4 right-4 z-20">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-sepia-800 border-sepia-800 text-white' : 'bg-white/80 border-sepia-400 backdrop-blur-sm shadow-sm'
                       }`}>
                       {isSelected && <CheckCircle2 size={14} strokeWidth={3} />}
                     </div>
                   </div>
                 )}
 
-                <div className="aspect-[4/3] bg-sepia-100 relative flex items-center justify-center overflow-hidden border-b border-sepia-200">
+                <div className="aspect-[4/3] bg-sepia-100/50 relative flex items-center justify-center overflow-hidden border border-gray-100">
                   {memory.hasPhoto ? (
                     <img src={memory.hasPhoto} alt={memory.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <ImageIcon size={32} className="text-sepia-300" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-sepia-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                    <span className="text-sepia-100 text-sm font-medium capitalize bg-sepia-900/50 backdrop-blur-sm px-2 py-1 rounded">{memory.type}</span>
+                  <div className="absolute inset-0 bg-gradient-to-t from-sepia-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                    <span className="text-white text-xs font-semibold tracking-wider uppercase bg-sepia-900/30 backdrop-blur-md px-2.5 py-1 rounded shadow-sm">{memory.type}</span>
                   </div>
                 </div>
-                <div className="p-5 flex-1 flex flex-col bg-gradient-to-b from-[var(--color-paper)] to-sepia-50/50">
-                  <h3 className="text-lg font-bold text-sepia-900 mb-3 font-serif line-clamp-2 leading-tight group-hover:text-sepia-700 transition-colors">{memory.title}</h3>
-                  <div className="mt-auto space-y-2.5 text-sm font-medium text-sepia-600">
+
+                {/* Polaroid Writable Space */}
+                <div className="p-4 flex-1 flex flex-col bg-white">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 font-serif line-clamp-2 leading-tight group-hover:text-sepia-700 transition-colors">{memory.title}</h3>
+                  <div className="mt-auto space-y-2 text-sm font-medium text-gray-500">
                     <div className="flex items-center gap-2.5">
-                      <Calendar size={14} className="text-sepia-400 flex-shrink-0" />
+                      <Calendar size={14} className="text-gray-400 flex-shrink-0" />
                       <span className="truncate">{memory.date}</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <MapPin size={14} className="text-sepia-400 flex-shrink-0" />
+                      <MapPin size={14} className="text-gray-400 flex-shrink-0" />
                       <span className="truncate">{memory.location}</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <Users size={14} className="text-sepia-400 flex-shrink-0" />
+                      <Users size={14} className="text-gray-400 flex-shrink-0" />
                       <span className="truncate">{memory.people.length > 0 ? memory.people.join(', ') : 'No people tagged'}</span>
                     </div>
                   </div>

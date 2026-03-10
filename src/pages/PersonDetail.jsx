@@ -318,6 +318,39 @@ export default function PersonDetail() {
     setSpouses(prev => prev.map(s => s.id === spouseId ? { ...s, [field]: value } : s));
   };
 
+  // ----- Dirty State Tracker -----
+  const isDirty = React.useMemo(() => {
+    if (!person || !initialPerson) return false;
+
+    return (
+      JSON.stringify(person) !== JSON.stringify(initialPerson) ||
+      JSON.stringify(parents) !== JSON.stringify(initialParents) ||
+      JSON.stringify(spouses) !== JSON.stringify(initialSpouses) ||
+      JSON.stringify(children) !== JSON.stringify(initialChildren)
+    );
+  }, [person, initialPerson, parents, initialParents, spouses, initialSpouses, children, initialChildren]);
+
+  // Intercept Browser Back Button / Reloads if Dirty
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  const handleGoBack = () => {
+    if (isDirty) {
+      if (!window.confirm("You have unsaved changes! Are you sure you want to leave without saving?")) {
+        return;
+      }
+    }
+    navigate('/people');
+  };
+
   if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sepia-800"></div></div>;
   if (error || !person) return <div className="p-8 text-center text-red-800 bg-red-50 rounded-lg">{error || 'Not found'}</div>;
 
@@ -346,7 +379,7 @@ export default function PersonDetail() {
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <button
                     onClick={() => {
-                      if (isProfileDirty() && !window.confirm("Navigate away? Unsaved changes to this profile will be lost.")) {
+                      if (isDirty && !window.confirm("Navigate away? Unsaved changes to this profile will be lost.")) {
                         return;
                       }
                       navigate(`/people/${id}`);
@@ -354,7 +387,7 @@ export default function PersonDetail() {
                     className="font-medium text-sepia-900 hover:text-sepia-600 hover:underline text-left flex items-center gap-1.5"
                   >
                     <span>{baseName}</span>
-                    {indicator && <span className="text-[10px] text-sepia-400 no-underline font-normal uppercase tracking-wide">{indicator}</span>}
+                    {indicator && <span className="text-transparent selection:bg-blue-200 selection:text-blue-900 no-underline font-normal uppercase tracking-wide text-[10px]" aria-hidden="true">{indicator}</span>}
                   </button>
                   {!isReadOnly && (
                     <button onClick={() => removeRelationship(id)} className="text-sepia-400 hover:text-red-600 transition-colors">&times;</button>
@@ -443,7 +476,7 @@ export default function PersonDetail() {
 
       {/* Header Toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-        <button onClick={() => navigate('/people')} className="w-full sm:w-auto flex items-center justify-center gap-2 text-sepia-600 hover:text-sepia-900 transition-colors font-medium bg-sepia-100/50 hover:bg-sepia-200 px-4 py-2 rounded-lg border border-sepia-200">
+        <button onClick={handleGoBack} className="w-full sm:w-auto flex items-center justify-center gap-2 text-sepia-600 hover:text-sepia-900 transition-colors font-medium bg-sepia-100/50 hover:bg-sepia-200 px-4 py-2 rounded-lg border border-sepia-200">
           <ArrowLeft size={18} /> <span className="hidden sm:inline">Back to Directory</span><span className="sm:hidden">Back</span>
         </button>
 
@@ -451,8 +484,18 @@ export default function PersonDetail() {
           <button onClick={handleDelete} className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg font-medium transition-colors border border-red-200">
             <Trash2 size={18} /> <span className="hidden sm:inline">Delete Person</span>
           </button>
-          <button onClick={handleSave} disabled={isSaving} className="flex-[2] sm:flex-none flex items-center justify-center gap-2 bg-sepia-800 text-sepia-50 px-6 py-2 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50 whitespace-nowrap">
-            <Save size={18} /> {isSaving ? 'Saving...' : 'Save Updates'}
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving || !isDirty}
+            className={`flex-[2] sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap
+              ${isSaving ? 'opacity-50 cursor-not-allowed bg-sepia-200 text-sepia-500'
+                : isDirty
+                  ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-md ring-2 ring-orange-500 ring-offset-2 ring-offset-[var(--color-bg)] animate-pulse'
+                  : 'bg-sepia-800 text-sepia-50 hover:bg-sepia-900'
+              }`}
+          >
+            <Save size={18} /> {isSaving ? 'Saving...' : isDirty ? 'Save Changes' : 'Saved'}
           </button>
         </div>
       </div>

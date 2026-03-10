@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Save, Trash2, ZoomIn, ZoomOut, Download, AlertCircle, Edit2, Check, X, MapPin, Tag, Users, Clock, ImageIcon, Lock, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, ZoomIn, ZoomOut, Download, AlertCircle, Edit2, Check, X, MapPin, Tag, Users, Clock, ImageIcon, Lock, FolderOpen, Share } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import DateRangePicker from '../components/DateRangePicker';
 import PlacePicker from '../components/PlacePicker';
 import ImageZoomModal from '../components/ImageZoomModal';
@@ -9,12 +10,14 @@ import ImageZoomModal from '../components/ImageZoomModal';
 export default function MemoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+  const { user } = useAuth();
+
   const [memory, setMemory] = useState(null);
+  const [originalMemory, setOriginalMemory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Image Zoom State
   const [showImageModal, setShowImageModal] = useState(false);
   const [swipeStartX, setSwipeStartX] = useState(null);
@@ -33,7 +36,7 @@ export default function MemoryDetail() {
     if (swipeStartX === null) return;
     const swipeEndX = e.changedTouches[0].clientX;
     const deltaX = swipeStartX - swipeEndX;
-    
+
     // If swiped left by more than 75px, open zoom
     if (deltaX > 75 && memory?.artifact_url) {
       setShowImageModal(true);
@@ -44,13 +47,82 @@ export default function MemoryDetail() {
   // Available Graph Tags
   const [availablePeople, setAvailablePeople] = useState([]);
   const [availableCollections, setAvailableCollections] = useState([]);
-  
+
+  // Share Modal State
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareRecipient, setShareRecipient] = useState('');
+  const [shareOptions, setShareOptions] = useState({ includeBio: false, includeContext: false });
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [systemUsers, setSystemUsers] = useState([]);
+
+  useEffect(() => {
+    if (showShareModal && systemUsers.length === 0) {
+      fetchSystemUsers();
+    }
+  }, [showShareModal]);
+
+  const fetchSystemUsers = async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('persons')
+        .select('id, display_name, email')
+        .not('email', 'is', null)
+        .order('display_name', { ascending: true });
+
+      if (error) throw error;
+      setSystemUsers(data || []);
+    } catch (err) {
+      console.error("Error fetching users to share with:", err);
+    }
+  };
+
+  const handleShare = async (e) => {
+    e.preventDefault();
+    if (!shareRecipient) return;
+
+    setIsSharing(true);
+    setShareError(null);
+    setShareSuccess(false);
+
+    try {
+      const { error: insertError } = await supabase
+        .from('shares')
+        .insert([{
+          sender_id: user?.id,
+          recipient_email: shareRecipient,
+          memory_id: memory.id,
+          include_bio: shareOptions.includeBio,
+          include_context: shareOptions.includeContext,
+          status: 'pending'
+        }]);
+
+      if (insertError) throw insertError;
+
+      setShareSuccess(true);
+      setTimeout(() => {
+        setShowShareModal(false);
+        setShareOptions({ includeBio: false, includeContext: false });
+        setShareRecipient('');
+        setShareSuccess(false);
+      }, 2000);
+
+    } catch (err) {
+      console.error("Share error:", err);
+      setShareError(err.message || 'Error executing share.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
         setError(null);
-        
+
         // 1. Fetch Memory Data + existing Memory_Persons
         const { data: memData, error: memError } = await supabase
           .from('memories')
@@ -69,31 +141,33 @@ export default function MemoryDetail() {
           `)
           .eq('id', id)
           .single();
-          
+
         if (memError) throw memError;
-        
+
         // Map edges into objects storing ID and Role
         const initialTaggedPeople = memData.memory_persons?.map(mp => ({
           id: mp.person_id,
           role: mp.role || 'subject'
         })) || [];
-        
-        setMemory({
+        const finalMemoryState = {
           ...memData,
-          date: { 
-            startDate: memData.start_date || null, 
-            endDate: memData.end_date || null, 
-            dateText: memData.date_text || null 
+          date: {
+            startDate: memData.start_date || null,
+            endDate: memData.end_date || null,
+            dateText: memData.date_text || null
           },
           description: memData.description || '',
           taggedPeople: initialTaggedPeople,
           taggedPlaces: memData.memory_places?.map(mp => mp.place_id) || [],
           taggedCollections: memData.memory_collections?.map(mc => mc.collection_id) || []
-        });
-        
+        };
+
+        setMemory(finalMemoryState);
+        setOriginalMemory(JSON.parse(JSON.stringify(finalMemoryState))); // Deep copy for clean state tracking
+
         // 2. Fetch all available persons and collections for the tagging UI
         await Promise.all([fetchPeople(), fetchCollections()]);
-        
+
       } catch (err) {
         console.error("Error fetching detail:", err);
         setError(err.message);
@@ -101,7 +175,7 @@ export default function MemoryDetail() {
         setLoading(false);
       }
     }
-    
+
     fetchData();
   }, [id]);
 
@@ -119,9 +193,9 @@ export default function MemoryDetail() {
 
   // Add Person Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPerson, setNewPerson] = useState({ 
-    display_name: '', first_name: '', last_name: '', 
-    birth: { startDate: null, endDate: null, dateText: null }, 
+  const [newPerson, setNewPerson] = useState({
+    display_name: '', first_name: '', last_name: '',
+    birth: { startDate: null, endDate: null, dateText: null },
     death: { startDate: null, endDate: null, dateText: null },
     isDeceased: false
   });
@@ -148,15 +222,15 @@ export default function MemoryDetail() {
         }])
         .select()
         .single();
-      
+
       if (insertError) throw insertError;
-      
+
       // Auto-tag the newly created person as a subject
       setMemory(prev => ({
         ...prev,
         taggedPeople: [...prev.taggedPeople, { id: data.id, role: 'subject' }]
       }));
-      
+
       // Reset and reload
       setShowAddModal(false);
       setNewPerson({ display_name: '', first_name: '', last_name: '', birth: { startDate: null, endDate: null, dateText: null }, death: { startDate: null, endDate: null, dateText: null }, isDeceased: false });
@@ -194,10 +268,37 @@ export default function MemoryDetail() {
   const updatePersonRole = (personId, newRole) => {
     setMemory(prev => ({
       ...prev,
-      taggedPeople: prev.taggedPeople.map(p => 
+      taggedPeople: prev.taggedPeople.map(p =>
         p.id === personId ? { ...p, role: newRole } : p
       )
     }));
+  };
+
+  // ----- Dirty State Tracker -----
+  const isDirty = React.useMemo(() => {
+    if (!memory || !originalMemory) return false;
+    return JSON.stringify(memory) !== JSON.stringify(originalMemory);
+  }, [memory, originalMemory]);
+
+  // Intercept Browser Back Button / Reloads if Dirty
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  const handleGoBack = () => {
+    if (isDirty) {
+      if (!window.confirm("You have unsaved changes! Are you sure you want to leave without saving?")) {
+        return;
+      }
+    }
+    navigate('/memories');
   };
 
   const handleSave = async () => {
@@ -215,54 +316,56 @@ export default function MemoryDetail() {
           description: memory.description
         })
         .eq('id', memory.id);
-        
+
       if (updateError) throw updateError;
-      
+
       // 2. Synchronize memory_persons tags 
       // Easiest approach for MVP sync: delete all edges for memory, re-insert selected
       const { error: deleteEdgesError } = await supabase
         .from('memory_persons')
         .delete()
         .eq('memory_id', memory.id);
-        
+
       if (deleteEdgesError) throw deleteEdgesError;
-      
+
+      // ...
+
       // Prevent duplicates by ID just in case
       const uniqueTagged = Array.from(new Map(memory.taggedPeople.map(item => [item.id, item])).values());
-      
+
       if (uniqueTagged.length > 0) {
         const edges = uniqueTagged.map(person => ({
           memory_id: memory.id,
           person_id: person.id,
           role: person.role
         }));
-        
+
         const { error: insertEdgesError } = await supabase
           .from('memory_persons')
           .insert(edges);
-          
+
         if (insertEdgesError) throw insertEdgesError;
       }
-      
+
       // 3. Synchronize memory_places tags
       const { error: deletePlacesError } = await supabase
         .from('memory_places')
         .delete()
         .eq('memory_id', memory.id);
-        
+
       if (deletePlacesError) throw deletePlacesError;
-      
+
       const uniquePlaces = Array.from(new Set(memory.taggedPlaces || []));
       if (uniquePlaces.length > 0) {
         const placeEdges = uniquePlaces.map(placeId => ({
           memory_id: memory.id,
           place_id: placeId
         }));
-        
+
         const { error: insertPlacesError } = await supabase
           .from('memory_places')
           .insert(placeEdges);
-          
+
         if (insertPlacesError) throw insertPlacesError;
       }
 
@@ -271,24 +374,28 @@ export default function MemoryDetail() {
         .from('memory_collections')
         .delete()
         .eq('memory_id', memory.id);
-        
+
       if (deleteCollectionsError) throw deleteCollectionsError;
-      
+
       const uniqueCollections = Array.from(new Set(memory.taggedCollections || []));
       if (uniqueCollections.length > 0) {
         const collectionEdges = uniqueCollections.map(collectionId => ({
           memory_id: memory.id,
           collection_id: collectionId
         }));
-        
+
         const { error: insertCollectionsError } = await supabase
           .from('memory_collections')
           .insert(collectionEdges);
-          
+
         if (insertCollectionsError) throw insertCollectionsError;
       }
-      
-      navigate('/memories');
+
+      // Update our clean state tracking to match the newly saved state
+      setOriginalMemory(JSON.parse(JSON.stringify(memory)));
+
+      // Optional: show a quick toast/indicator, or just let the user keep working
+      // navigate('/memories'); <- Removed auto-navigation on save so user can keep editing
     } catch (err) {
       console.error("Save error:", err);
       alert("Failed to save changes. " + err.message);
@@ -299,13 +406,13 @@ export default function MemoryDetail() {
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to permanently delete this memory?")) return;
-    
+
     try {
       const { error: deleteError } = await supabase
         .from('memories')
         .delete()
         .eq('id', memory.id);
-        
+
       if (deleteError) throw deleteError;
       navigate('/memories');
     } catch (err) {
@@ -333,12 +440,12 @@ export default function MemoryDetail() {
   }
 
   return (
-    <div 
-      className="max-w-7xl mx-auto flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500 relative"
+    <div
+      className="max-w-7xl mx-auto flex flex-col min-h-[calc(100vh-8rem)] animate-in fade-in duration-500 relative"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      
+
       {/* Swipe Hint (Mobile Only) */}
       {memory?.artifact_url && memory?.type === 'photo' && !showImageModal && (
         <div className="lg:hidden fixed bottom-6 right-6 bg-sepia-900/80 text-sepia-50 px-4 py-2 rounded-full backdrop-blur-md shadow-lg z-40 text-xs font-medium tracking-wide pointer-events-none animate-bounce border border-sepia-700/50">
@@ -352,58 +459,58 @@ export default function MemoryDetail() {
           <div className="bg-[var(--color-paper)] rounded-2xl border border-sepia-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-4 md:p-6 border-b border-sepia-100 bg-sepia-50/50 sticky top-0 z-10">
               <h3 className="font-serif font-bold text-lg md:text-xl text-sepia-900">Add Person to Graph</h3>
-              <button 
+              <button
                 type="button"
-                onClick={() => setShowAddModal(false)} 
+                onClick={() => setShowAddModal(false)}
                 className="text-sepia-400 hover:text-sepia-700 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddPerson} className="p-6 space-y-4 text-left">
               {addingError && <p className="text-red-600 text-sm">{addingError}</p>}
-              
+
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-sepia-800">Display Name *</label>
-                <input required value={newPerson.display_name} onChange={e => setNewPerson({...newPerson, display_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
+                <input required value={newPerson.display_name} onChange={e => setNewPerson({ ...newPerson, display_name: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" placeholder="e.g. Grandma Rose" />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-sepia-800">First Name</label>
-                  <input value={newPerson.first_name} onChange={e => setNewPerson({...newPerson, first_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+                  <input value={newPerson.first_name} onChange={e => setNewPerson({ ...newPerson, first_name: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-sepia-800">Last Name</label>
-                  <input value={newPerson.last_name} onChange={e => setNewPerson({...newPerson, last_name: e.target.value})} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
+                  <input value={newPerson.last_name} onChange={e => setNewPerson({ ...newPerson, last_name: e.target.value })} type="text" className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400" />
                 </div>
               </div>
 
-              <DateRangePicker 
-                label="Birth Date" 
-                value={newPerson.birth} 
-                onChange={(val) => setNewPerson({...newPerson, birth: val})} 
+              <DateRangePicker
+                label="Birth Date"
+                value={newPerson.birth}
+                onChange={(val) => setNewPerson({ ...newPerson, birth: val })}
               />
-              
+
               <label className="flex items-center gap-2 cursor-pointer mt-2 w-max">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={newPerson.isDeceased}
-                  onChange={(e) => setNewPerson({...newPerson, isDeceased: e.target.checked})}
+                  onChange={(e) => setNewPerson({ ...newPerson, isDeceased: e.target.checked })}
                   className="w-4 h-4 text-sepia-600 border-sepia-300 rounded focus:ring-sepia-500"
                 />
                 <span className="text-sm font-semibold text-sepia-800">Person is Deceased</span>
               </label>
 
               {newPerson.isDeceased && (
-                <DateRangePicker 
-                  label="Death Date" 
-                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }} 
-                  onChange={(val) => setNewPerson({...newPerson, death: val})} 
+                <DateRangePicker
+                  label="Death Date"
+                  value={newPerson.death || { startDate: null, endDate: null, dateText: null }}
+                  onChange={(val) => setNewPerson({ ...newPerson, death: val })}
                 />
               )}
-              
+
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>
                 <button type="submit" disabled={isAddingPerson || !newPerson.display_name} className="flex items-center gap-2 bg-sepia-800 text-sepia-50 px-5 py-2.5 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50">
@@ -417,104 +524,192 @@ export default function MemoryDetail() {
 
       {/* Full-Screen Image Zoom & Pan Modal */}
       {showImageModal && memory.type === 'photo' && memory.artifact_url && (
-        <ImageZoomModal 
-          url={memory.artifact_url} 
-          alt={memory.title} 
-          onClose={() => setShowImageModal(false)} 
+        <ImageZoomModal
+          url={memory.artifact_url}
+          alt={memory.title}
+          onClose={() => setShowImageModal(false)}
         />
+      )}
+
+      {/* Share Artifact Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-sepia-950/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--color-paper)] rounded-2xl border border-sepia-200 shadow-xl w-full max-w-md animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-sepia-100 bg-sepia-50/50 rounded-t-2xl">
+              <h3 className="font-serif font-bold text-lg md:text-xl text-sepia-900 flex items-center gap-2">
+                <Share size={20} className="text-blue-600" /> Share Artifact
+              </h3>
+              <button onClick={() => setShowShareModal(false)} className="text-sepia-400 hover:text-sepia-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleShare} className="p-6 space-y-5 text-left">
+              {shareError && <div className="text-red-700 bg-red-50 p-3 rounded-lg text-sm border border-red-200">{shareError}</div>}
+              {shareSuccess ? (
+                <div className="text-green-700 bg-green-50 p-4 rounded-xl text-center border border-green-200 space-y-2">
+                  <Check className="mx-auto w-8 h-8 text-green-600" />
+                  <p className="font-bold">Share Sent Successfully!</p>
+                  <p className="text-sm">The recipient will see this in their inbox.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-sepia-800">Recipient Email Address *</label>
+                    <input
+                      required
+                      type="email"
+                      value={shareRecipient}
+                      onChange={e => setShareRecipient(e.target.value)}
+                      placeholder="e.g. user@example.com"
+                      className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-3 text-sepia-900 focus:outline-none focus:ring-2 focus:ring-sepia-400"
+                    />
+                    <p className="text-xs text-sepia-500 mt-1">They will see this artifact in their incoming dashboard shares.</p>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <label className="text-sm font-semibold text-sepia-800 border-b border-sepia-100 pb-1 block">Data to Include</label>
+                    <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-sepia-50 rounded-lg border border-transparent hover:border-sepia-200 transition-colors">
+                      <input type="checkbox" checked={true} disabled className="w-4 h-4 text-sepia-600 rounded bg-sepia-200 border-transparent focus:ring-0 cursor-not-allowed opacity-50" />
+                      <span className="text-sm font-medium text-sepia-900 opacity-60">Digital Asset (Photo / Link)</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-sepia-50 rounded-lg border border-transparent hover:border-sepia-200 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={shareOptions.includeContext}
+                        onChange={e => setShareOptions({ ...shareOptions, includeContext: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 border-sepia-300 rounded focus:ring-blue-600"
+                      />
+                      <span className="text-sm font-medium text-sepia-900">Context, Transcription & Dates</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-sepia-50 rounded-lg border border-transparent hover:border-sepia-200 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={shareOptions.includeBio}
+                        onChange={e => setShareOptions({ ...shareOptions, includeBio: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 border-sepia-300 rounded focus:ring-blue-600"
+                      />
+                      <span className="text-sm font-medium text-sepia-900">Linked Biographies & Tags</span>
+                    </label>
+                  </div>
+
+                  <div className="pt-4 flex justify-end gap-3 mt-4 border-t border-sepia-100">
+                    <button type="button" onClick={() => setShowShareModal(false)} className="px-5 py-2.5 text-sepia-700 font-medium hover:bg-sepia-100 rounded-lg transition-colors">Cancel</button>
+                    <button type="submit" disabled={isSharing || !shareRecipient} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
+                      {isSharing ? 'Sending...' : 'Send to Inbox'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Header Toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-        <button onClick={() => navigate('/memories')} className="w-full sm:w-auto flex items-center justify-center gap-2 text-sepia-600 hover:text-sepia-900 transition-colors font-medium bg-sepia-100/50 hover:bg-sepia-200 px-4 py-2 rounded-lg border border-sepia-200">
-          <ArrowLeft size={18} /> <span className="hidden sm:inline">Back to Grid</span><span className="sm:hidden">Back</span>
+        <button onClick={handleGoBack} className="w-full sm:w-auto flex items-center justify-center gap-2 text-sepia-600 hover:text-sepia-900 transition-colors font-medium bg-sepia-100/50 hover:bg-sepia-200 px-4 py-2 rounded-lg border border-sepia-200">
+          <ArrowLeft size={18} /> <span className="hidden sm:inline">Back</span>
         </button>
-        
+
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button onClick={handleDelete} className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg font-medium transition-colors border border-red-200">
-            <Trash2 size={18} /> <span className="hidden sm:inline">Delete Artifact</span>
+            <Trash2 size={18} /> <span className="hidden sm:inline">Delete</span>
           </button>
-          <button onClick={handleSave} disabled={isSaving} className="flex-[2] sm:flex-none flex items-center justify-center gap-2 bg-sepia-800 text-sepia-50 px-6 py-2 rounded-lg font-medium hover:bg-sepia-900 transition-colors disabled:opacity-50 whitespace-nowrap">
-            <Save size={18} /> {isSaving ? 'Saving...' : 'Save Updates'}
+          <button onClick={() => setShowShareModal(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg font-medium transition-colors border border-blue-200">
+            <Share size={18} /> <span className="hidden sm:inline">Share</span>
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving || !isDirty}
+            className={`flex-[2] sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap
+              ${isSaving ? 'opacity-50 cursor-not-allowed bg-sepia-200 text-sepia-500'
+                : isDirty
+                  ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-md ring-2 ring-orange-500 ring-offset-2 ring-offset-[var(--color-bg)] animate-pulse'
+                  : 'bg-sepia-800 text-sepia-50 hover:bg-sepia-900'
+              }`}
+          >
+            <Save size={18} /> {isSaving ? 'Saving...' : isDirty ? 'Save Changes' : 'Saved'}
           </button>
         </div>
       </div>
 
       {/* Split View Container */}
       <div className="flex-1 flex flex-col lg:flex-row gap-8 min-h-0 pb-12 lg:pb-0">
-        
+
         {/* Left Column: Artifact Viewer */}
         <div className="flex-1 bg-[var(--color-paper)] border border-sepia-200 rounded-2xl overflow-hidden shadow-sm flex flex-col relative group">
-           <div className="absolute inset-x-0 top-0 p-4 bg-gradient-to-b from-sepia-950/40 to-transparent z-10 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="bg-sepia-900/60 backdrop-blur-md text-sepia-50 text-sm font-medium px-3 py-1 rounded-full border border-sepia-700/50 capitalize">
-                {memory.type} node
-              </span>
-           </div>
-           
-           {memory.artifact_url ? (
-             <div className="flex-1 w-full bg-sepia-100 flex items-center justify-center p-4 relative overflow-hidden group/img">
-                {memory.type === 'photo' ? (
-                  <>
-                    <img src={memory.artifact_url} alt={memory.title} className="max-w-full max-h-full object-contain drop-shadow-md rounded z-0" />
-                    <div 
-                      onClick={openImageModal}
-                      className="absolute inset-0 bg-transparent flex items-end justify-center p-6 sm:bg-sepia-900/10 sm:opacity-0 sm:group-hover/img:opacity-100 transition-opacity cursor-pointer z-10 sm:items-center"
-                    >
-                      <div className="bg-sepia-900/80 text-sepia-50 px-4 py-2 sm:p-4 rounded-full backdrop-blur-md shadow-lg transform sm:scale-95 sm:group-hover/img:scale-100 transition-transform flex items-center gap-2">
-                        <ZoomIn size={24} className="sm:w-8 sm:h-8" />
-                        <span className="text-sm font-medium tracking-wide sm:hidden">Tap to Zoom Image</span>
-                      </div>
+          <div className="absolute inset-x-0 top-0 p-4 bg-gradient-to-b from-sepia-950/40 to-transparent z-10 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="bg-sepia-900/60 backdrop-blur-md text-sepia-50 text-sm font-medium px-3 py-1 rounded-full border border-sepia-700/50 capitalize">
+              {memory.type} node
+            </span>
+          </div>
+
+          {memory.artifact_url ? (
+            <div className="flex-1 w-full bg-sepia-100 flex items-center justify-center p-4 relative overflow-hidden group/img">
+              {memory.type === 'photo' ? (
+                <>
+                  <img src={memory.artifact_url} alt={memory.title} className="max-w-full max-h-full object-contain drop-shadow-md rounded z-0" />
+                  <div
+                    onClick={openImageModal}
+                    className="absolute inset-0 bg-transparent flex items-end justify-center p-6 sm:bg-sepia-900/10 sm:opacity-0 sm:group-hover/img:opacity-100 transition-opacity cursor-pointer z-10 sm:items-center"
+                  >
+                    <div className="bg-sepia-900/80 text-sepia-50 px-4 py-2 sm:p-4 rounded-full backdrop-blur-md shadow-lg transform sm:scale-95 sm:group-hover/img:scale-100 transition-transform flex items-center gap-2">
+                      <ZoomIn size={24} className="sm:w-8 sm:h-8" />
+                      <span className="text-sm font-medium tracking-wide sm:hidden">Tap to Zoom Image</span>
                     </div>
-                  </>
-                ) : (
-                  <iframe src={memory.artifact_url} title={memory.title} className="w-full h-full bg-white rounded" />
-                )}
-             </div>
-           ) : (
-             <div className="flex-1 w-full bg-sepia-100 flex flex-col items-center justify-center text-sepia-400">
-               <ImageIcon size={64} className="mb-4 text-sepia-300" />
-               <p className="font-medium text-lg text-sepia-500">No media attached to this node</p>
-             </div>
-           )}
+                  </div>
+                </>
+              ) : (
+                <iframe src={memory.artifact_url} title={memory.title} className="w-full h-full bg-white rounded" />
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 w-full bg-sepia-100 flex flex-col items-center justify-center text-sepia-400">
+              <ImageIcon size={64} className="mb-4 text-sepia-300" />
+              <p className="font-medium text-lg text-sepia-500">No media attached to this node</p>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Metadata Editor */}
         <div className="w-full lg:w-[450px] flex flex-col gap-6 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sepia-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-          
+
           {/* Core Properties */}
           <div className="bg-[var(--color-paper)] border border-sepia-200 rounded-2xl p-6 shadow-sm space-y-5">
             <h3 className="font-serif font-bold text-xl text-sepia-900 border-b border-sepia-100 pb-3">Node Data</h3>
-            
+
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-sepia-800">Artifact Title</label>
-                <input 
-                  value={memory.title} 
-                  onChange={e => setMemory({...memory, title: e.target.value})} 
-                  type="text" 
-                  className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 font-medium focus:outline-none focus:ring-2 focus:ring-sepia-400" 
+                <input
+                  value={memory.title}
+                  onChange={e => setMemory({ ...memory, title: e.target.value })}
+                  type="text"
+                  className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-2.5 text-sepia-900 font-medium focus:outline-none focus:ring-2 focus:ring-sepia-400"
                 />
               </div>
-              
-              <DateRangePicker 
-                label="Memory Date (Temporal Node)" 
-                value={memory.date} 
-                onChange={(val) => setMemory({...memory, date: val})} 
+
+              <DateRangePicker
+                label="Memory Date (Temporal Node)"
+                value={memory.date}
+                onChange={(val) => setMemory({ ...memory, date: val })}
               />
               <div className="mt-6">
-                 <PlacePicker 
-                   selectedPlaceIds={memory.taggedPlaces || []}
-                   onChange={(places) => setMemory({...memory, taggedPlaces: places})}
-                 />
+                <PlacePicker
+                  selectedPlaceIds={memory.taggedPlaces || []}
+                  onChange={(places) => setMemory({ ...memory, taggedPlaces: places })}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-sepia-800">Context / Story / Transcription</label>
-                <textarea 
-                  value={memory.description} 
-                  onChange={e => setMemory({...memory, description: e.target.value})} 
-                  className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-3 text-sepia-900 h-32 focus:outline-none focus:ring-2 focus:ring-sepia-400 resize-none" 
-                  placeholder="Record OCR text or back-of-photo writing here..." 
+                <textarea
+                  value={memory.description}
+                  onChange={e => setMemory({ ...memory, description: e.target.value })}
+                  className="w-full bg-sepia-50 border border-sepia-300 rounded-lg p-3 text-sepia-900 h-32 focus:outline-none focus:ring-2 focus:ring-sepia-400 resize-none"
+                  placeholder="Record OCR text or back-of-photo writing here..."
                 />
               </div>
             </div>
@@ -523,15 +718,15 @@ export default function MemoryDetail() {
           {/* Graph Connections */}
           <div className="bg-[var(--color-paper)] border border-sepia-200 rounded-2xl p-6 shadow-sm flex-1 flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-sepia-100 pb-3">
-               <h3 className="font-serif font-bold text-xl text-sepia-900 flex items-center gap-2">
-                 <Users size={20} className="text-sepia-600" /> Linked Persons
-                 <span className="bg-sepia-100 text-sepia-800 text-xs font-bold px-2 py-0.5 rounded-full ml-1">{memory.taggedPeople.length}</span>
-               </h3>
-               <button type="button" onClick={() => setShowAddModal(true)} className="text-sm font-medium text-sepia-700 bg-sepia-100 hover:bg-sepia-200 border border-sepia-300 px-3 py-1 rounded-md transition-colors flex items-center gap-1">
-                 <Users size={14} /> New Person
-               </button>
+              <h3 className="font-serif font-bold text-xl text-sepia-900 flex items-center gap-2">
+                <Users size={20} className="text-sepia-600" /> Linked Persons
+                <span className="bg-sepia-100 text-sepia-800 text-xs font-bold px-2 py-0.5 rounded-full ml-1">{memory.taggedPeople.length}</span>
+              </h3>
+              <button type="button" onClick={() => setShowAddModal(true)} className="text-sm font-medium text-sepia-700 bg-sepia-100 hover:bg-sepia-200 border border-sepia-300 px-3 py-1 rounded-md transition-colors flex items-center gap-1">
+                <Users size={14} /> New Person
+              </button>
             </div>
-            
+
             {/* Active Tags with Roles */}
             {memory.taggedPeople.length > 0 && (
               <div className="space-y-3">
@@ -540,11 +735,11 @@ export default function MemoryDetail() {
                   {memory.taggedPeople.map(tagged => {
                     const personData = availablePeople.find(p => p.id === tagged.id);
                     if (!personData) return null;
-                    
+
                     return (
                       <div key={tagged.id} className="flex items-center justify-between p-3 gap-4">
                         <span className="font-medium text-sepia-900 truncate">{personData.display_name}</span>
-                        <select 
+                        <select
                           value={tagged.role}
                           onChange={(e) => updatePersonRole(tagged.id, e.target.value)}
                           className="bg-white border border-sepia-200 rounded-lg text-sm text-sepia-700 py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-sepia-400"
@@ -561,7 +756,7 @@ export default function MemoryDetail() {
                 </div>
               </div>
             )}
-            
+
             {/* Available Person Picker */}
             <div>
               <h4 className="text-xs font-bold text-sepia-500 uppercase tracking-wider mb-3">Add Graph Edge</h4>
@@ -569,12 +764,12 @@ export default function MemoryDetail() {
                 {availablePeople.map(person => {
                   const isSelected = memory.taggedPeople.some(p => p.id === person.id);
                   return (
-                    <button 
+                    <button
                       key={person.id}
                       onClick={() => togglePersonTag(person.id)}
                       className={`px-3 py-1.5 rounded-md border text-sm font-medium transition-all duration-200 flex items-center gap-1.5
-                        ${isSelected 
-                          ? 'bg-sepia-800 text-sepia-50 border-sepia-900 shadow-sm opacity-50' 
+                        ${isSelected
+                          ? 'bg-sepia-800 text-sepia-50 border-sepia-900 shadow-sm opacity-50'
                           : 'bg-sepia-50 text-sepia-700 border-sepia-300 hover:bg-sepia-100 hover:border-sepia-400'
                         }`}
                     >
@@ -598,12 +793,12 @@ export default function MemoryDetail() {
                 {availableCollections.map(collection => {
                   const isSelected = memory.taggedCollections.includes(collection.id);
                   return (
-                    <button 
+                    <button
                       key={collection.id}
                       onClick={() => toggleCollectionTag(collection.id)}
                       className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all duration-200 flex items-center gap-1.5
-                        ${isSelected 
-                          ? 'bg-sepia-700 text-sepia-50 border-sepia-800 shadow-sm opacity-60' 
+                        ${isSelected
+                          ? 'bg-sepia-700 text-sepia-50 border-sepia-800 shadow-sm opacity-60'
                           : 'bg-[var(--color-paper)] text-sepia-700 border-sepia-300 hover:bg-sepia-50 hover:border-sepia-400'
                         }`}
                     >
@@ -619,7 +814,7 @@ export default function MemoryDetail() {
                 )}
               </div>
             </div>
-            
+
           </div>
 
         </div>
