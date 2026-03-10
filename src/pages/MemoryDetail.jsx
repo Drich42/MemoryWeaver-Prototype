@@ -387,10 +387,11 @@ export default function MemoryDetail() {
                     <img src={memory.artifact_url} alt={memory.title} className="max-w-full max-h-full object-contain drop-shadow-md rounded z-0" />
                     <div 
                       onClick={openImageModal}
-                      className="absolute inset-0 bg-sepia-900/10 opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer z-10 flex items-center justify-center"
+                      className="absolute inset-0 bg-transparent flex items-end justify-center p-6 sm:bg-sepia-900/10 sm:opacity-0 sm:group-hover/img:opacity-100 transition-opacity cursor-pointer z-10 sm:items-center"
                     >
-                      <div className="bg-sepia-900/60 text-sepia-50 p-4 rounded-full backdrop-blur-md shadow-lg transform scale-95 group-hover/img:scale-100 transition-transform">
-                        <ZoomIn size={32} />
+                      <div className="bg-sepia-900/80 text-sepia-50 px-4 py-2 sm:p-4 rounded-full backdrop-blur-md shadow-lg transform sm:scale-95 sm:group-hover/img:scale-100 transition-transform flex items-center gap-2">
+                        <ZoomIn size={24} className="sm:w-8 sm:h-8" />
+                        <span className="text-sm font-medium tracking-wide sm:hidden">Tap to Zoom Image</span>
                       </div>
                     </div>
                   </>
