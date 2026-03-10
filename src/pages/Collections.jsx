@@ -160,13 +160,15 @@ export default function Collections() {
                   </div>
                 </div>
               ) : (
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-sepia-100 text-sepia-700 rounded-lg group-hover:bg-sepia-800 group-hover:text-sepia-50 transition-colors">
-                    <FolderOpen size={24} />
-                  </div>
-                  <button className="text-sepia-400 hover:text-sepia-700 p-1">
+                <div className="h-40 -mx-6 -mt-6 mb-4 relative overflow-hidden bg-gradient-to-br from-sepia-100 to-sepia-200 flex items-center justify-center group-hover:from-sepia-200 group-hover:to-sepia-300 transition-colors duration-500">
+                  <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/20 to-transparent pointer-events-none"></div>
+                  <FolderOpen size={48} className="text-sepia-400/50 group-hover:scale-110 transition-transform duration-500" />
+                  <button className="absolute top-3 right-3 text-black/50 hover:text-black p-1 z-10 transition-colors">
                     <MoreVertical size={18} />
                   </button>
+                  <div className="absolute bottom-3 left-4 p-2 bg-[var(--color-paper)]/90 backdrop-blur-sm text-sepia-700 rounded-lg shadow-sm border border-white/40">
+                    <FolderOpen size={20} />
+                  </div>
                 </div>
               )}
               <h3 className="text-xl md:text-2xl font-bold font-serif text-sepia-900 leading-tight mb-2 group-hover:text-sepia-700 transition-colors">
