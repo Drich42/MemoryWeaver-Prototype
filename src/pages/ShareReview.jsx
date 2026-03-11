@@ -122,10 +122,12 @@ export default function ShareReview() {
             const isCollection = !!share.collection_id;
 
             // Step 0: Process all "CREATE_NEW" profile mappings first
+            // Only do this if bio data was included in the share
             const resolvedMapping = { ...personMapping }; // incoming_id -> absolute_local_id
 
-            for (const incomingId of Object.keys(personMapping)) {
-                if (personMapping[incomingId] === 'CREATE_NEW') {
+            if (share.include_bio) {
+                for (const incomingId of Object.keys(personMapping)) {
+                    if (personMapping[incomingId] === 'CREATE_NEW') {
                     // Find original record
                     const originalPerson = incomingPersons.find(p => p.id === incomingId);
                     if (originalPerson) {
@@ -147,6 +149,7 @@ export default function ShareReview() {
                     }
                 }
             }
+        }
 
             if (isCollection) {
                 const originalCol = share.collections;
@@ -156,7 +159,8 @@ export default function ShareReview() {
                     .from('collections')
                     .insert([{
                         name: originalCol.name,
-                        description: originalCol.description
+                        description: originalCol.description,
+                        owner_id: user?.id
                     }])
                     .select()
                     .single();
