@@ -22,6 +22,7 @@ export default function Memories() {
   const [availableCollections, setAvailableCollections] = useState([]);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  const [newCollectionName, setNewCollectionName] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
 
 
@@ -29,11 +30,11 @@ export default function Memories() {
   useEffect(() => {
     async function fetchCollections() {
       if (!supabase) return;
-      const { data } = await supabase.from('collections').select('id, name').order('name');
+      const { data } = await supabase.from('collections').select('id, name').eq('owner_id', user?.id).order('name');
       if (data) setAvailableCollections(data);
     }
     fetchCollections();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     async function fetchMemories() {
@@ -131,11 +132,30 @@ export default function Memories() {
   const handleBatchAssign = async () => {
     if (selectedItems.size === 0) return;
     if (!selectedCollectionId) return;
+    if (selectedCollectionId === 'CREATE_NEW' && !newCollectionName.trim()) {
+      alert("Please enter a name for the new collection.");
+      return;
+    }
 
     setIsAssigning(true);
 
     try {
-      const targetCollectionId = selectedCollectionId;
+      let targetCollectionId = selectedCollectionId;
+
+      if (selectedCollectionId === 'CREATE_NEW') {
+        // Create new collection
+        const { data: newColl, error: collError } = await supabase
+          .from('collections')
+          .insert([{ name: newCollectionName.trim(), owner_id: user?.id }])
+          .select()
+          .single();
+
+        if (collError) throw collError;
+        targetCollectionId = newColl.id;
+
+        // Optionally, append to availableCollections in state so it shows next time without refresh
+        setAvailableCollections(prev => [...prev, { id: newColl.id, name: newColl.name }].sort((a,b) => a.name.localeCompare(b.name)));
+      }
 
       // Create edge objects for bulk insert
       const edgesToInsert = Array.from(selectedItems).map(memoryId => ({
@@ -163,6 +183,7 @@ export default function Memories() {
 
       // Reset & close
       setShowCollectionModal(false);
+      setNewCollectionName('');
       clearSelection();
 
       // Optional: Show success toast
@@ -350,6 +371,51 @@ export default function Memories() {
               <p className="text-sepia-600 mb-4 font-medium">Add {selectedItems.size} artifact(s) to:</p>
 
               <div className="space-y-3">
+                <label className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors overflow-hidden ${selectedCollectionId === 'CREATE_NEW' ? 'border-primary bg-primary/5' : 'border-sepia-200 hover:bg-sepia-50'
+                  }`}>
+                  <div className="flex justify-between items-center w-full">
+                    <span className="font-bold text-primary flex items-center gap-2">
+                      <FolderOpen size={16} />
+                      Create New Collection
+                    </span>
+                    <input
+                      type="radio"
+                      name="collection_target"
+                      value="CREATE_NEW"
+                      checked={selectedCollectionId === 'CREATE_NEW'}
+                      onChange={() => setSelectedCollectionId('CREATE_NEW')}
+                      className="w-4 h-4 text-primary border-sepia-300 focus:ring-primary"
+                    />
+                  </div>
+                  
+                  {/* Expandable Text Input */}
+                  <div className={`mt-3 transition-all duration-300 ${selectedCollectionId === 'CREATE_NEW' ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0 hidden'}`}>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 1999 Grand Canyon Trip"
+                      value={newCollectionName}
+                      onChange={(e) => setNewCollectionName(e.target.value)}
+                      className="w-full px-3 py-2 border border-sepia-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white text-sepia-900"
+                      onClick={(e) => {
+                         // Prevent clicking the input from toggling the radio if it's already selected
+                         e.stopPropagation(); 
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleBatchAssign();
+                        }
+                      }}
+                    />
+                  </div>
+                </label>
+
+                <div className="flex items-center gap-3 my-4">
+                  <div className="h-px bg-sepia-200 flex-1"></div>
+                  <span className="text-xs font-semibold uppercase text-sepia-400 tracking-wider">OR CHOOSE EXISTING</span>
+                  <div className="h-px bg-sepia-200 flex-1"></div>
+                </div>
+
                 {availableCollections.map(collection => (
                   <label key={collection.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${selectedCollectionId === collection.id ? 'border-sepia-800 bg-sepia-100' : 'border-sepia-200 hover:bg-sepia-50'
                     }`}>
@@ -370,7 +436,7 @@ export default function Memories() {
 
                 {availableCollections.length === 0 && (
                   <div className="text-center p-4 bg-sepia-50 rounded-lg text-sepia-500 border border-dashed border-sepia-300">
-                    No collections available. Create one on the Collections page.
+                    No existing collections. Try creating one above!
                   </div>
                 )}
               </div>
