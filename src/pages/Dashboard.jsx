@@ -11,8 +11,9 @@ export default function Dashboard() {
   const [storytellers, setStorytellers] = useState([]);
   const [collections, setCollections] = useState([]);
   const [pendingShares, setPendingShares] = useState([]);
+  const [acceptedShares, setAcceptedShares] = useState([]); // Added acceptedShares state
 
-  // Lineage Stats
+  // Stats
   const [personCount, setPersonCount] = useState(0);
   const [linkCount, setLinkCount] = useState(0);
 
@@ -59,12 +60,15 @@ export default function Dashboard() {
         // Fetch Pending Shares
         const { data: sharesData } = await supabase
           .from('shares')
-          .select('*, memories(id, title, artifact_url, thumbnail_url, type), collections(id, name)')
-          .eq('status', 'pending')
+          .select('*, memories(id, title, artifact_url, thumbnail_url, type), collections(id, name, description)')
           .eq('recipient_email', user?.email)
           .order('created_at', { ascending: false });
 
-        setPendingShares(sharesData || []);
+        const pending = (sharesData || []).filter(s => s.status === 'pending');
+        const accepted = (sharesData || []).filter(s => s.status === 'accepted');
+
+        setPendingShares(pending);
+        setAcceptedShares(accepted);
 
         // 4. Fetch Lineage Stats (Totals) // using head: true gives count without returning data
         const { count: pCount } = await supabase
@@ -106,7 +110,7 @@ export default function Dashboard() {
         <p className="text-slate-500 mt-1 italic">"The threads of the past are the fabric of our future."</p>
       </div>
 
-      {/* Inbox / Pending Shares */}
+      {/* Incoming Shares (Pending) */}
       {pendingShares.length > 0 && (
         <section className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl p-6 shadow-sm mb-8 animate-in slide-in-from-top-4">
           <div className="flex items-center gap-2 mb-4">
@@ -149,6 +153,52 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Shared With Me (Accepted) */}
+      {acceptedShares.length > 0 && (
+        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm mb-8 animate-in slide-in-from-top-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-accent-cyan">cloud_download</span>
+              <h2 className="text-xl font-bold text-navy-muted dark:text-slate-100">Shared With Me</h2>
+              <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold px-2 py-0.5 rounded-full ml-1">{acceptedShares.length}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {acceptedShares.map(share => {
+              const isCollection = !!share.collection_id;
+              const mem = share.memories;
+              const coll = share.collections;
+
+              const imageUrl = !isCollection && (mem?.thumbnail_url || mem?.artifact_url);
+              const title = isCollection ? coll?.name : (mem?.title || 'Shared Artifact');
+              const icon = isCollection ? 'folder_shared' : 'inventory_2';
+
+              return (
+                <Link to={isCollection ? `/shared/collection/${share.collection_id}` : `/shared/memory/${share.memory_id}`} key={share.id} className="group bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 hover:border-accent-cyan/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl p-4 flex gap-4 items-center shadow-sm hover:shadow transition-all">
+                  <div className={`h-16 w-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border ${isCollection ? 'bg-accent-cyan/10 border-accent-cyan/20 text-accent-cyan' : 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400'}`}>
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <span className="material-symbols-outlined text-3xl">{icon}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-accent-cyan transition-colors">{title}</p>
+                    <p className="text-xs text-slate-500 mb-1 truncate">From: {share.sender_email || 'Archive User'}</p>
+                    <div className="flex items-center">
+                      <div className="flex gap-1 relative z-0">
+                        <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[9px] uppercase font-bold rounded">Read Only</span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
               );
             })}
           </div>

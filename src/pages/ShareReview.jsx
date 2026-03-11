@@ -14,11 +14,6 @@ export default function ShareReview() {
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Conflict Resolution State
-    const [existingPersons, setExistingPersons] = useState([]);
-    const [incomingPersons, setIncomingPersons] = useState([]);
-    const [personMapping, setPersonMapping] = useState({}); // { incoming_person_id: 'CREATE_NEW' | existing_person_id }
-
     useEffect(() => {
         async function fetchShare() {
             try {
@@ -58,15 +53,6 @@ export default function ShareReview() {
 
                 setShare(data);
 
-                // Fetch existing persons for the mapping dropdown
-                const { data: personsData, error: personsError } = await supabase
-                    .from('persons')
-                    .select('id, display_name')
-                    .order('display_name');
-                if (!personsError && personsData) {
-                    setExistingPersons(personsData);
-                }
-
             } catch (err) {
                 console.error("Error fetching share:", err);
                 setError(err.message);
@@ -77,280 +63,29 @@ export default function ShareReview() {
         fetchShare();
     }, [id, user]);
 
-    // Extract unique incoming persons
-    useEffect(() => {
-        if (!share || !share.include_bio) return;
-
-        const isCollection = !!share.collection_id;
-        let allEdges = [];
-
-        if (isCollection) {
-            share.collections?.memory_collections?.forEach(mc => {
-                const mem = mc.memories;
-                if (mem?.memory_persons) {
-                    allEdges = allEdges.concat(mem.memory_persons);
-                }
-            });
-        } else {
-            allEdges = share.memories?.memory_persons || [];
-        }
-
-        const uniquePersonsMap = new Map();
-        allEdges.forEach(edge => {
-            if (edge.persons && !uniquePersonsMap.has(edge.persons.id)) {
-                uniquePersonsMap.set(edge.persons.id, edge.persons);
-            }
-        });
-
-        const uniquePersonsList = Array.from(uniquePersonsMap.values());
-        setIncomingPersons(uniquePersonsList);
-
-        // Pre-fill mapping to default to CREATE_NEW
-        const initialMapping = {};
-        uniquePersonsList.forEach(p => {
-            initialMapping[p.id] = 'CREATE_NEW';
-        });
-        setPersonMapping(initialMapping);
-
-    }, [share]);
-
     const handleAccept = async () => {
         if (!share) return;
         setIsProcessing(true);
 
         try {
-            const isCollection = !!share.collection_id;
+            const { error: updateError } = await supabase
+                .from('shares')
+                .update({ status: 'accepted' })
+                .eq('id', share.id);
+            
+            if (updateError) throw updateError;
 
-            // Step 0: Process all "CREATE_NEW" profile mappings first
-            // Only do this if bio data was included in the share
-            const resolvedMapping = { ...personMapping }; // incoming_id -> absolute_local_id
-
-            if (share.include_bio) {
-                for (const incomingId of Object.keys(personMapping)) {
-                    if (personMapping[incomingId] === 'CREATE_NEW') {
-                        // Find original record
-                        const originalPerson = incomingPersons.find(p => p.id === incomingId);
-                        if (originalPerson) {
-                            console.log("Creating new person profile for (ShareReview):", originalPerson.display_name);
-                            const { data: newPerson, error: insertError } = await supabase
-                                .from('persons')
-                                .insert([{
-                                    display_name: originalPerson.display_name,
-                                    // Assuming basic info copies over, but keeping it simple for prototype
-                                }])
-                                .select()
-                                .single();
-
-                            if (insertError) {
-                                console.error("Failed to create new person profile:", insertError);
-                                throw insertError;
-                            }
-                            resolvedMapping[incomingId] = newPerson.id; // Update map with the fresh ID
-                        }
-                    } else if (personMapping[incomingId] && personMapping[incomingId] !== 'CREATE_NEW') {
-                        // It's an existing mapped person ID, use it directly
-                        resolvedMapping[incomingId] = personMapping[incomingId];
-                    }
-                }
-
-                // --- NEW LOGIC: Clone Person Relationships (Bio Links) ---
-                if (Object.keys(resolvedMapping).length > 0) {
-                    // Fetch existing relationships among any of the incoming persons
-                    const incomingIds = Object.keys(personMapping);
-                    if (incomingIds.length > 0) {
-                        try {
-                            const { data: existingRels, error: relsError } = await supabase
-                                .from('person_relationships')
-                                .select('*')
-                                .in('person1_id', incomingIds)
-                                .in('person2_id', incomingIds);
-                            
-                            if (relsError) {
-                                console.warn("Failed to fetch incoming relationships:", relsError);
-                            } else if (existingRels && existingRels.length > 0) {
-                                // Map old IDs to new resolved IDs
-                                const newRels = existingRels.map(rel => {
-                                    const newP1 = resolvedMapping[rel.person1_id];
-                                    const newP2 = resolvedMapping[rel.person2_id];
-                                    if (!newP1 || !newP2) return null; // Skip if either wasn't mapped
-                                    
-                                    return {
-                                        person1_id: newP1,
-                                        person2_id: newP2,
-                                        relationship_type: rel.relationship_type,
-                                        owner_id: user?.id
-                                    };
-                                }).filter(Boolean);
-
-                                // Filter out edges where p1 == p2 just in case
-                                const validNewRels = newRels.filter(r => r.person1_id !== r.person2_id);
-                                
-                                if (validNewRels.length > 0) {
-                                    // De-duplicate in memory (basic) to avoid PK constraints if both directions fetched
-                                    const uniqueRelsMap = new Set();
-                                    const deduplicatedRels = [];
-                                    validNewRels.forEach(r => {
-                                        const hash1 = `${r.person1_id}_${r.person2_id}_${r.relationship_type}`;
-                                        if (!uniqueRelsMap.has(hash1)) {
-                                            uniqueRelsMap.add(hash1);
-                                            deduplicatedRels.push(r);
-                                        }
-                                    });
-
-                                    // Instead of erroring if existing (due to mapping to existing persons), use a safe upsert approach 
-                                    // But since we don't have a strict unique constraint on (person1, person2, type) besides maybe an index, 
-                                    // we'll just insert and catch/ignore conflicts for now, or just let it insert.
-                                    const { error: insertRelsError } = await supabase
-                                        .from('person_relationships')
-                                        .insert(deduplicatedRels);
-                                    
-                                    if (insertRelsError) {
-                                        console.warn("Could not insert cloned relationships (they might already exist):", insertRelsError);
-                                    } else {
-                                        console.log("Successfully cloned person relationships.");
-                                    }
-                                }
-                            }
-                        } catch (err) {
-                            console.warn("Unable to process person_relationships during share clone.", err);
-                        }
-                    }
-                }
-            }
-
-            if (isCollection) {
-                const originalCol = share.collections;
-
-                // 1. Clone the collection itself
-                const { data: newCol, error: colCloneError } = await supabase
-                    .from('collections')
-                    .insert([{
-                        name: originalCol.name,
-                        description: originalCol.description,
-                        owner_id: user?.id
-                    }])
-                    .select()
-                    .single();
-
-                if (colCloneError) throw colCloneError;
-
-                const memEdges = originalCol.memory_collections || [];
-                const edgesToInsert = [];
-
-                // 2. Loop through and clone each memory inside
-                for (const mcEdge of memEdges) {
-                    const originalMemory = mcEdge.memories;
-                    if (!originalMemory) continue;
-
-                    const { data: newMemory, error: memCloneError } = await supabase
-                        .from('memories')
-                        .insert([{
-                            title: originalMemory.title,
-                            type: originalMemory.type,
-                            artifact_url: originalMemory.artifact_url,
-                            thumbnail_url: originalMemory.thumbnail_url,
-                            description: share.include_context ? originalMemory.description : null,
-                            date_text: share.include_context ? originalMemory.date_text : null,
-                            start_date: share.include_context ? originalMemory.start_date : null,
-                            end_date: share.include_context ? originalMemory.end_date : null,
-                            uploader_id: user?.id,
-                            status: 'draft'
-                        }])
-                        .select()
-                        .single();
-
-                    if (memCloneError) throw memCloneError;
-
-                    // Prepare collection link
-                    edgesToInsert.push({ memory_id: newMemory.id, collection_id: newCol.id });
-
-                    // Clone bio tags
-                    if (share.include_bio && originalMemory.memory_persons?.length > 0) {
-                        const bioEdges = originalMemory.memory_persons; // Use pre-fetched data
-
-                        if (bioEdges && bioEdges.length > 0) {
-                            const newBioEdges = bioEdges.map(edge => {
-                                // Important: edge.persons is available because we prefetched it!
-                                const resolvedPersonId = edge.persons ? resolvedMapping[edge.persons.id] : null; 
-                                if (!resolvedPersonId) return null; // Safety skip if missing
-                                return {
-                                    memory_id: newMemory.id,
-                                    person_id: resolvedPersonId,
-                                    role: edge.role || 'subject' // Default role if missing
-                                };
-                            }).filter(Boolean);
-
-                            if (newBioEdges.length > 0) {
-                                console.log("Attempting to insert edge links via clone loop:", newBioEdges);
-                                const { error: edgeInsertError } = await supabase.from('memory_persons').insert(newBioEdges);
-                                if (edgeInsertError) {
-                                    console.error("Failed to insert memory_persons edge:", edgeInsertError);
-                                    throw edgeInsertError;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 3. Insert all new collection links
-                if (edgesToInsert.length > 0) {
-                    await supabase.from('memory_collections').insert(edgesToInsert);
-                }
-
-                // 4. Update share status & Redirect
-                await supabase.from('shares').update({ status: 'accepted' }).eq('id', share.id);
-                navigate(`/collections/${newCol.id}`);
-
+            // Route to read-only views
+            if (share.collection_id) {
+                navigate(`/shared/collection/${share.collection_id}`);
             } else {
-                // EXISTING SINGLE MEMORY LOGIC
-                const originalMemory = share.memories;
-                const { data: newMemory, error: cloneError } = await supabase
-                    .from('memories')
-                    .insert([{
-                        title: originalMemory.title,
-                        type: originalMemory.type,
-                        artifact_url: originalMemory.artifact_url,
-                        thumbnail_url: originalMemory.thumbnail_url,
-                        description: share.include_context ? originalMemory.description : null,
-                        date_text: share.include_context ? originalMemory.date_text : null,
-                        start_date: share.include_context ? originalMemory.start_date : null,
-                        end_date: share.include_context ? originalMemory.end_date : null,
-                        uploader_id: user?.id,
-                        status: 'draft'
-                    }])
-                    .select()
-                    .single();
-
-                if (cloneError) throw cloneError;
-
-                if (share.include_bio && originalMemory.memory_persons?.length > 0) {
-                    const edges = originalMemory.memory_persons; // Use pre-fetched data
-                    if (edges && edges.length > 0) {
-                        const newEdges = edges.map(edge => {
-                            // Important: edge.persons is available because we prefetched it
-                            const resolvedPersonId = edge.persons ? resolvedMapping[edge.persons.id] : null;
-                            if (!resolvedPersonId) return null;
-                            return { memory_id: newMemory.id, person_id: resolvedPersonId, role: edge.role || 'subject' };
-                        }).filter(Boolean);
-
-                        if (newEdges.length > 0) {
-                            console.log("Attempting to insert single edge links via clone loop:", newEdges);
-                            const { error: edgeInsertError } = await supabase.from('memory_persons').insert(newEdges);
-                            if (edgeInsertError) {
-                                console.error("Failed to insert single memory_persons edge:", edgeInsertError);
-                                throw edgeInsertError;
-                            }
-                        }
-                    }
-                }
-
-                await supabase.from('shares').update({ status: 'accepted' }).eq('id', share.id);
-                navigate(`/memories/${newMemory.id}`);
+                // Future Implementation: A Read-Only Memory View
+                navigate(`/shared/memory/${share.memory_id}`);
             }
 
         } catch (err) {
             console.error("Error accepting share:", err);
-            alert("Failed to integrate into your archive: " + err.message);
+            alert("Failed to accept share: " + err.message);
             setIsProcessing(false);
         }
     };
@@ -499,33 +234,7 @@ export default function ShareReview() {
                             </div>
                         </div>
 
-                        {/* Bio Tag Resolution Block */}
-                        {!isProcessed && share.include_bio && incomingPersons.length > 0 && (
-                            <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 text-lg">Resolve Biological Tags</h3>
-                                <p className="text-sm text-slate-500 mb-4">The sender included tags for {incomingPersons.length} people. Would you like to create new profiles for them, or map them to existing people in your archive?</p>
-
-                                <div className="space-y-3">
-                                    {incomingPersons.map(person => (
-                                        <div key={person.id} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                            <span className="font-medium text-slate-800 dark:text-slate-200">{person.display_name}</span>
-                                            <select
-                                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg p-2 focus:ring-primary focus:border-primary block w-full md:w-auto"
-                                                value={personMapping[person.id] || 'CREATE_NEW'}
-                                                onChange={(e) => setPersonMapping({ ...personMapping, [person.id]: e.target.value })}
-                                            >
-                                                <option value="CREATE_NEW">+ Create Brand New Profile</option>
-                                                <optgroup label="Merge with Existing:">
-                                                    {existingPersons.map(ep => (
-                                                        <option key={ep.id} value={ep.id}>{ep.display_name}</option>
-                                                    ))}
-                                                </optgroup>
-                                            </select>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        {/* Bio Tag Resolution Block removed: Mapping now happens during Selective Import */}
 
                         {/* Action Buttons */}
                         {!isProcessed && (

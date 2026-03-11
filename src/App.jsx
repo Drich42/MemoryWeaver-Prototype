@@ -13,6 +13,8 @@ import CollectionDetail from './pages/CollectionDetail';
 import Auth from './pages/Auth';
 import ShareReview from './pages/ShareReview';
 import FamilyTree from './pages/FamilyTree';
+import SharedCollection from './pages/SharedCollection';
+import ImportReview from './pages/ImportReview';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -237,6 +239,8 @@ function App() {
             <Route path="people/:id" element={<PersonDetail />} />
             <Route path="collections" element={<Collections />} />
             <Route path="collections/:id" element={<CollectionDetail />} />
+            <Route path="shared/collection/:id" element={<SharedCollection />} />
+            <Route path="shared/import/:id" element={<ImportReview />} />
             <Route path="share-review/:id" element={<ShareReview />} />
             <Route path="settings" element={<div className="text-center p-12 text-sepia-600">Settings and Trust Groups configuration</div>} />
           </Route>
