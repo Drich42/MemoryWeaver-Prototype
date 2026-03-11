@@ -152,6 +152,70 @@ export default function ShareReview() {
                         resolvedMapping[incomingId] = personMapping[incomingId];
                     }
                 }
+
+                // --- NEW LOGIC: Clone Person Relationships (Bio Links) ---
+                if (Object.keys(resolvedMapping).length > 0) {
+                    // Fetch existing relationships among any of the incoming persons
+                    const incomingIds = Object.keys(personMapping);
+                    if (incomingIds.length > 0) {
+                        try {
+                            const { data: existingRels, error: relsError } = await supabase
+                                .from('person_relationships')
+                                .select('*')
+                                .in('person1_id', incomingIds)
+                                .in('person2_id', incomingIds);
+                            
+                            if (relsError) {
+                                console.warn("Failed to fetch incoming relationships:", relsError);
+                            } else if (existingRels && existingRels.length > 0) {
+                                // Map old IDs to new resolved IDs
+                                const newRels = existingRels.map(rel => {
+                                    const newP1 = resolvedMapping[rel.person1_id];
+                                    const newP2 = resolvedMapping[rel.person2_id];
+                                    if (!newP1 || !newP2) return null; // Skip if either wasn't mapped
+                                    
+                                    return {
+                                        person1_id: newP1,
+                                        person2_id: newP2,
+                                        relationship_type: rel.relationship_type,
+                                        owner_id: user?.id
+                                    };
+                                }).filter(Boolean);
+
+                                // Filter out edges where p1 == p2 just in case
+                                const validNewRels = newRels.filter(r => r.person1_id !== r.person2_id);
+                                
+                                if (validNewRels.length > 0) {
+                                    // De-duplicate in memory (basic) to avoid PK constraints if both directions fetched
+                                    const uniqueRelsMap = new Set();
+                                    const deduplicatedRels = [];
+                                    validNewRels.forEach(r => {
+                                        const hash1 = `${r.person1_id}_${r.person2_id}_${r.relationship_type}`;
+                                        if (!uniqueRelsMap.has(hash1)) {
+                                            uniqueRelsMap.add(hash1);
+                                            deduplicatedRels.push(r);
+                                        }
+                                    });
+
+                                    // Instead of erroring if existing (due to mapping to existing persons), use a safe upsert approach 
+                                    // But since we don't have a strict unique constraint on (person1, person2, type) besides maybe an index, 
+                                    // we'll just insert and catch/ignore conflicts for now, or just let it insert.
+                                    const { error: insertRelsError } = await supabase
+                                        .from('person_relationships')
+                                        .insert(deduplicatedRels);
+                                    
+                                    if (insertRelsError) {
+                                        console.warn("Could not insert cloned relationships (they might already exist):", insertRelsError);
+                                    } else {
+                                        console.log("Successfully cloned person relationships.");
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.warn("Unable to process person_relationships during share clone.", err);
+                        }
+                    }
+                }
             }
 
             if (isCollection) {
@@ -202,19 +266,17 @@ export default function ShareReview() {
 
                     // Clone bio tags
                     if (share.include_bio && originalMemory.memory_persons?.length > 0) {
-                        const { data: bioEdges } = await supabase
-                            .from('memory_persons')
-                            .select('*')
-                            .eq('memory_id', originalMemory.id);
+                        const bioEdges = originalMemory.memory_persons; // Use pre-fetched data
 
                         if (bioEdges && bioEdges.length > 0) {
                             const newBioEdges = bioEdges.map(edge => {
-                                const resolvedPersonId = resolvedMapping[edge.person_id];
+                                // Important: edge.persons is available because we prefetched it!
+                                const resolvedPersonId = edge.persons ? resolvedMapping[edge.persons.id] : null; 
                                 if (!resolvedPersonId) return null; // Safety skip if missing
                                 return {
                                     memory_id: newMemory.id,
                                     person_id: resolvedPersonId,
-                                    role: edge.role
+                                    role: edge.role || 'subject' // Default role if missing
                                 };
                             }).filter(Boolean);
 
@@ -262,12 +324,13 @@ export default function ShareReview() {
                 if (cloneError) throw cloneError;
 
                 if (share.include_bio && originalMemory.memory_persons?.length > 0) {
-                    const { data: edges } = await supabase.from('memory_persons').select('*').eq('memory_id', originalMemory.id);
+                    const edges = originalMemory.memory_persons; // Use pre-fetched data
                     if (edges && edges.length > 0) {
                         const newEdges = edges.map(edge => {
-                            const resolvedPersonId = resolvedMapping[edge.person_id];
+                            // Important: edge.persons is available because we prefetched it
+                            const resolvedPersonId = edge.persons ? resolvedMapping[edge.persons.id] : null;
                             if (!resolvedPersonId) return null;
-                            return { memory_id: newMemory.id, person_id: resolvedPersonId, role: edge.role };
+                            return { memory_id: newMemory.id, person_id: resolvedPersonId, role: edge.role || 'subject' };
                         }).filter(Boolean);
 
                         if (newEdges.length > 0) {
