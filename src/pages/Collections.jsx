@@ -3,11 +3,14 @@ import { supabase } from '../lib/supabase';
 import { Plus, FolderOpen, Image as ImageIcon, FileText, Search, MoreVertical, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../contexts/AuthContext';
+
 export default function Collections() {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth(); // Import user
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,6 +42,7 @@ export default function Collections() {
             )
           )
         `)
+        .eq('owner_id', user?.id)
         .order('name');
 
       if (fetchError) throw fetchError;

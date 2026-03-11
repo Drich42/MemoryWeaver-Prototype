@@ -128,28 +128,31 @@ export default function ShareReview() {
             if (share.include_bio) {
                 for (const incomingId of Object.keys(personMapping)) {
                     if (personMapping[incomingId] === 'CREATE_NEW') {
-                    // Find original record
-                    const originalPerson = incomingPersons.find(p => p.id === incomingId);
-                    if (originalPerson) {
-                        console.log("Creating new person profile for (ShareReview):", originalPerson.display_name);
-                        const { data: newPerson, error: insertError } = await supabase
-                            .from('persons')
-                            .insert([{
-                                display_name: originalPerson.display_name,
-                                // Assuming basic info copies over, but keeping it simple for prototype
-                            }])
-                            .select()
-                            .single();
+                        // Find original record
+                        const originalPerson = incomingPersons.find(p => p.id === incomingId);
+                        if (originalPerson) {
+                            console.log("Creating new person profile for (ShareReview):", originalPerson.display_name);
+                            const { data: newPerson, error: insertError } = await supabase
+                                .from('persons')
+                                .insert([{
+                                    display_name: originalPerson.display_name,
+                                    // Assuming basic info copies over, but keeping it simple for prototype
+                                }])
+                                .select()
+                                .single();
 
-                        if (insertError) {
-                            console.error("Failed to create new person profile:", insertError);
-                            throw insertError;
+                            if (insertError) {
+                                console.error("Failed to create new person profile:", insertError);
+                                throw insertError;
+                            }
+                            resolvedMapping[incomingId] = newPerson.id; // Update map with the fresh ID
                         }
-                        resolvedMapping[incomingId] = newPerson.id; // Update map with the fresh ID
+                    } else if (personMapping[incomingId] && personMapping[incomingId] !== 'CREATE_NEW') {
+                        // It's an existing mapped person ID, use it directly
+                        resolvedMapping[incomingId] = personMapping[incomingId];
                     }
                 }
             }
-        }
 
             if (isCollection) {
                 const originalCol = share.collections;

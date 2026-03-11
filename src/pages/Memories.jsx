@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Filter, Users, Calendar, MapPin, Search, AlertCircle, Image as ImageIcon, CheckCircle2, FolderOpen, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Memories() {
   const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth(); // Import user for filtering
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +56,7 @@ export default function Memories() {
             memory_places ( places ( placename, city_town, state_region, country ) ),
             memory_events ( events ( name ) )
           `)
+          .eq('uploader_id', user?.id)
           .order('created_at', { ascending: false });
 
         if (fetchError) throw fetchError;

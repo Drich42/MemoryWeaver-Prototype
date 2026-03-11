@@ -21,10 +21,10 @@ export default function Dashboard() {
       try {
         setLoading(true);
 
-        // 1. Fetch Recent Artifacts (Memories with media)
         const { data: artifactsData } = await supabase
           .from('memories')
           .select('id, title, type, start_date, date_text, artifact_url, thumbnail_url')
+          .eq('uploader_id', user?.id)
           .not('artifact_url', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
@@ -40,10 +40,10 @@ export default function Dashboard() {
 
         setStorytellers(personsData || []);
 
-        // 3. Fetch Active Threads (Collections)
         const { data: collectionsData } = await supabase
           .from('collections')
           .select('*, memory_collections(memories(artifact_url, thumbnail_url))')
+          .eq('owner_id', user?.id)
           .order('created_at', { ascending: false })
           .limit(3);
 
