@@ -30,14 +30,14 @@ export default function ShareReview() {
             *,
             memories (
               *,
-              memory_persons ( persons ( id, display_name ) )
+              memory_persons ( role, person_id, persons ( id, display_name ) )
             ),
             collections (
               *,
               memory_collections (
                 memories (
                   *,
-                  memory_persons ( persons ( id, display_name ) )
+                  memory_persons ( role, person_id, persons ( id, display_name ) )
                 )
               )
             )
